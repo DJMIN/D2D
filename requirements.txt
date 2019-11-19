@@ -1,0 +1,53 @@
+gevent
+DBUtils
+# mysql
+redis>=3.2.1
+# mysqlclient
+pymysql
+pysocks
+PyMySQL
+click
+tornado
+python-dateutil
+telethon
+six
+urllib3
+phone
+wrapt
+watchdog
+gunicorn
+chardet
+flask
+flask_sqlalchemy
+
+# flask_mongoengine 安装报错 需要以下三个包
+rednose
+nose
+coverage
+
+flask_mongoengine
+Flask-Migrate
+mongoengine
+requests>=2.22.0
+# requests==2.2.1
+itsdangerous
+elasticsearch>=6.1.1
+elasticsearch_dsl>=6.1
+demjson
+xlrd
+openpyxl
+
+# blob utf8 decode error
+mysql-connector>=2.1.7
+mysql-connector-python>=8.0.6
+pymongo
+# pymongo==3.2  # pymongo.errors.ConfigurationError: Server at 127.0.0.1:27017 reports wire version 0, but this version of PyMongo requires at least 2 (MongoDB 2.6).
+pyquery
+
+# pycrypto
+pycryptodome
+
+requests[socks]
+PySocks
+cryptg
+# supervisor

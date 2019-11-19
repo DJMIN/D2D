@@ -13,6 +13,5 @@ def exception_wrapper(func):
         except Exception as e:
             func_info = f'{func.__code__.co_filename}:{func.__code__.co_firstlineno}:{func.__name__}()'
             g_log.error('\n[%s]\n%r\n%r' % (func_info, args, kwargs),  e)
-            exit()
 
     return inner

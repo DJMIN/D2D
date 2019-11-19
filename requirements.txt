@@ -50,4 +50,5 @@ pycryptodome
 requests[socks]
 PySocks
 cryptg
+psycopg2-binary
 # supervisor

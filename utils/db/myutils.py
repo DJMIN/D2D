@@ -6,6 +6,8 @@ import re
 import logging
 import traceback
 import os
+import warnings
+
 import openpyxl
 import openpyxl.utils
 import time
@@ -23,6 +25,8 @@ INSERT_NORMAL = 0
 INSERT_REPLACE = 1
 INSERT_IGNORE = 2
 import mysql.connector as d_b_c
+import mysql.connector as mysql_connector
+import pymysql
 from mysql.connector.errors import DatabaseError
 
 cur_e=(d_b_c.OperationalError, d_b_c.InterfaceError)
@@ -193,130 +197,154 @@ class EsModel(object):
         iclient = elasticsearch.client.indices.IndicesClient(self.es)
         return iclient.analyze(body={'text': query, 'analyzer': analyzer})
 
-    def scan(self, query, index, doc_type='_doc', scroll_id=None, scroll_total=0, scroll='30m',
-             preserve_order=False, window=1000, size=0, offset=0, fields=None,
-             clear_scroll=True, sort=None, sleep=0, file_save=False, query_task_id=None, set_p_func=None,
-             **scroll_kwargs):
-        query_str = str(json.dumps(query).replace("'", '"'))
-        if size and size + offset <= 10000:
-            resp = self.es.search(body=query, index=index, doc_type=doc_type,
-                                  # _source_include=[] if offset > window else fields,
-                                  _source_include=fields, from_=offset, size=size, sort=sort)
-            for hit in resp['hits']['hits']:
-                yield hit
-            return
+    def scan(
+            self,
+            query=None,
+            scroll="30m",
+            raise_on_error=True,
+            preserve_order=False,
+            size=1000,
+            request_timeout=None,
+            clear_scroll=True,
+            scroll_kwargs=None,
+            **kwargs
+    ):
+        """
+        Simple abstraction on top of the
+        :meth:`~elasticsearch.Elasticsearch.scroll` api - a simple iterator that
+        yields all hits as returned by underlining scroll requests.
 
-        window = min([window, 10000])
-        if size:
-            if offset:
-                if offset < window:
-                    window = min([window, size + offset])
-        m = hashlib.md5()
-        m.update(query_str.encode())
-        file_path = 'scroll_ids_%s_%s.json' % (query_task_id, m.hexdigest())
-        if file_save:
-            if os.path.exists(file_path) and os.path.isfile(file_path):
-                with open(file_path, 'r') as s_id_file:
-                    d = json.load(s_id_file)
-                    scroll_id = d.get('scroll_id')
-                    scroll_total = d.get('scroll_total', scroll_total)
+        By default scan does not return results in any pre-determined order. To
+        have a standard order in the returned documents (either by score or
+        explicit sort definition) when scrolling, use ``preserve_order=True``. This
+        may be an expensive operation and will negate the performance benefits of
+        using ``scan``.
 
-        if not scroll_id:
-            if not preserve_order:
-                query = query.copy() if query else {}
-                query["sort"] = "_doc"
+        :arg client: instance of :class:`~elasticsearch.Elasticsearch` to use
+        :arg query: body for the :meth:`~elasticsearch.Elasticsearch.search` api
+        :arg scroll: Specify how long a consistent view of the index should be
+            maintained for scrolled search
+        :arg raise_on_error: raises an exception (``ScanError``) if an error is
+            encountered (some shards fail to execute). By default we raise.
+        :arg preserve_order: don't set the ``search_type`` to ``scan`` - this will
+            cause the scroll to paginate with preserving the order. Note that this
+            can be an extremely expensive operation and can easily lead to
+            unpredictable results, use with caution.
+        :arg size: size (per shard) of the batch send at each iteration.
+        :arg request_timeout: explicit timeout for each call to ``scan``
+        :arg clear_scroll: explicitly calls delete on the scroll id via the clear
+            scroll API at the end of the method on completion or error, defaults
+            to true.
+        :arg scroll_kwargs: additional kwargs to be passed to
+            :meth:`~elasticsearch.Elasticsearch.scroll`
 
-            # initial search
-            resp = self.es.search(body=query, index=index, doc_type=doc_type,
-                                  # _source_include=[] if offset > window else fields,
-                                  _source_include=fields,
-                                  scroll=scroll, size=window, sort=sort)
+        Any additional keyword arguments will be passed to the initial
+        :meth:`~elasticsearch.Elasticsearch.search` call::
 
-            scroll_id = resp.get('_scroll_id')
+            scan(es,
+                query={"query": {"match": {"title": "python"}}},
+                index="orders-*",
+                doc_type="books"
+            )
 
-            scroll_total = resp.get('hits', {}).get('total')
-            first_run = True
+        """
+        scroll_kwargs = scroll_kwargs or {}
 
-        else:
-            first_run = False
-            scroll_total = scroll_total
-            resp = {}
-        fin = 0
-        if scroll_id is None:
-            return
+        if not preserve_order:
+            query = query.copy() if query else {}
+            query["sort"] = "_doc"
 
-        if file_save:
-            with open(file_path, 'w') as s_id_file:
-                json.dump({
-                    'scroll_id': scroll_id,
-                    'query_body': query_str,
-                    'scroll_total': scroll_total,
-                }, s_id_file)
+        # initial search
+        resp = self.es.search(
+            body=query, scroll=scroll, size=size, request_timeout=request_timeout, **kwargs
+        )
+        scroll_id = resp.get("_scroll_id")
+
         try:
-            while True:
-                time.sleep(sleep)
-                # if we didn't set search_type to scan initial search contains data
-                if first_run:
-                    first_run = False
-                else:
-                    try:
-                        resp = self.es.scroll(scroll_id, scroll=scroll,
-                                              # params={'source': [] if fin < offset else fields},
-                                              # source=[] if fin < offset else fields,
-                                              **scroll_kwargs)
-                    except elasticsearch.exceptions.NotFoundError:
-                        resp = self.es.search(body=query, index=index, doc_type=doc_type, scroll=scroll,
-                                              # _source_include=[] if fin < offset else fields,
-                                              _source_include=fields,
-                                              size=window, sort=sort)
+            while scroll_id and resp["hits"]["hits"]:
+                for hit in resp["hits"]["hits"]:
+                    yield hit
 
-                        scroll_id = resp.get('_scroll_id')
-                        scroll_total = resp.get('hits', {}).get('total')
-                        if scroll_id is None:
-                            return
-                        fin = 0
+                # check if we have any errors
+                if (resp["_shards"]["successful"] + resp["_shards"]["skipped"]) < resp["_shards"]["total"]:
+                    logging.warning(
+                        "Scroll request has only succeeded on %d (+%d skipped) shards out of %d.",
+                        resp["_shards"]["successful"],
+                        resp["_shards"]["skipped"],
+                        resp["_shards"]["total"],
+                    )
+                    if raise_on_error:
+                        raise Exception(
+                            scroll_id,
+                            "Scroll request has only succeeded on %d (+%d skiped) shards out of %d."
+                            % (resp["_shards"]["successful"], resp["_shards"]["skipped"], resp["_shards"]["total"]),
+                        )
+                resp = self.es.scroll(
+                    body={"scroll_id": scroll_id, "scroll": scroll}, **scroll_kwargs
+                )
+                scroll_id = resp.get("_scroll_id")
 
-                        if file_save:
-                            with open(file_path, 'w') as s_id_file:
-                                json.dump({
-                                    'scroll_id': scroll_id,
-                                    'query_body': query_str,
-                                    'scroll_total': scroll_total,
-                                }, s_id_file)
-
-                po_total = (min([scroll_total, offset + size]) if size else scroll_total)
-                if isinstance(po_total, dict):
-                    po_total = po_total['value']
-                if set_p_func:
-                    set_p_func('扫描数据库', (float(fin + len(resp['hits']['hits'])) / (po_total or 1) * 100))
-                print('%d->%d/%d ... %.2f%%: %s' % (
-                    fin, fin + len(resp['hits']['hits']),
-                    po_total, float(fin + len(resp['hits']['hits'])) / (po_total or 1) * 100, query_str))
-
-                for hit in resp['hits']['hits']:
-                    fin += 1
-                    if size and (fin - offset > size):
-                        break
-                    if fin > offset:
-                        yield hit
-
-                # check if we have any errrors
-                # if resp["_shards"]["successful"] < resp["_shards"]["total"]:
-                #     raise Exception(
-                #         'Scroll request has only succeeded on %d shards out of %d.' % (
-                #         resp['_shards']['successful'], resp['_shards']['total'])
-                #     )
-
-                scroll_id = resp.get('_scroll_id')
-                # end of scroll
-                if scroll_id is None or not resp['hits']['hits'] or (
-                        size and fin - offset >= size) or scroll_total == fin:
-                    break
         finally:
             if scroll_id and clear_scroll:
-                self.es.clear_scroll(body={'scroll_id': [scroll_id]}, ignore=(404,))
-                if file_save and os.path.exists(file_path) and os.path.isfile(file_path):
-                    os.remove(file_path)
+                self.es.clear_scroll(body={"scroll_id": [scroll_id]}, ignore=(404,))
+
+    # def scan(self, query, index, doc_type='_doc', scroll_id=None, scroll_total=0, scroll='30m',
+    #          preserve_order=False, window=1000, size=None, offset=0, fields=None,
+    #          clear_scroll=True, sort=None, sleep=0, query_task_id=None,
+    #          **scroll_kwargs):
+    #     query_str = str(json.dumps(query).replace("'", '"'))
+    #     print(query_str)
+    #     if not scroll_id:
+    #         if not preserve_order:
+    #             query = query.copy() if query else {}
+    #             query["sort"] = "_doc"
+    #
+    #         # initial search
+    #         resp = self.es.search(body=query, index=index, scroll=scroll, size=size, sort=sort)
+    #
+    #         scroll_id = resp.get('_scroll_id')
+    #         scroll_total = resp.get('hits', {}).get('total')['value']
+    #         first_run = True
+    #
+    #     else:
+    #         first_run = False
+    #         scroll_total = scroll_total
+    #         resp = {}
+    #     fin = 0
+    #     if scroll_id is None:
+    #         return
+    #     try:
+    #         idx  = 0
+    #         while True:
+    #             idx+=1
+    #             # if we didn't set search_type to scan initial search contains data
+    #             if first_run:
+    #                 first_run = False
+    #             else:
+    #                 print(idx,scroll_id)
+    #
+    #                 resp = self.es.scroll(scroll_id=scroll_id)
+    #                                       # params={'source': [] if fin < offset else fields},
+    #                                       # source=[] if fin < offset else fields,)
+    #             for hit in resp['hits']['hits']:
+    #                 yield hit
+    #             if size:
+    #                 scroll_id = resp.get('_scroll_id')
+    #                 print(resp, scroll_id)
+    #             # check if we have any errrors
+    #             # if resp["_shards"]["successful"] < resp["_shards"]["total"]:
+    #             #     raise Exception(
+    #             #         'Scroll request has only succeeded on %d shards out of %d.' % (
+    #             #         resp['_shards']['successful'], resp['_shards']['total'])
+    #             #     )
+    #
+    #             # end of scroll
+    #             if scroll_id is None or not resp['hits']['hits'] or (
+    #                     size and fin - offset >= size) or scroll_total == fin:
+    #                 break
+    #     finally:
+    #         if scroll_id and clear_scroll:
+    #             self.es.clear_scroll(body={'scroll_id': [scroll_id]}, ignore=(404,))
 
     def select(self, query, index, doc_type="_doc", fields=None, offset=0, limit=0, sort=None, result_format=True):
         offset = offset or 0
@@ -485,6 +513,168 @@ class EsModel(object):
         return data
 
 
+class ClientPyMySQL:
+    INSERT_NORMAL = 'insert'
+    INSERT_REPLACE = 'replace'
+    INSERT_IGNORE = 'insert ignore'
+    INSERT_MODES = {INSERT_IGNORE, INSERT_REPLACE, INSERT_NORMAL}
+    PLACEHOLDER = '%s'
+
+    def __init__(self, host, port, database,
+                 user, passwd):
+        # Connect to mysql.
+        # dbc = pymysql.connect(
+        #     host=Config.MYSQL_HOST, user=Config.MYSQL_USER,
+        #     password=Config.MYSQL_PASSWORD, database=Config.MYSQL_DATABASE,
+        #     port=Config.MYSQL_PORT,
+        #     charset='utf8mb4',
+        #     use_unicode=True,
+        #     cursorclass=pymysql.cursors.DictCursor
+        # )
+        """
+        SteadyDB
+        DBUtils.SteadyDB基于兼容DB-API 2接口的数据库模块创建的普通连接，
+        实现了"加强"连接。具体指当数据库连接关闭、丢失或使用频率超出限制时，将自动重新获取连接。
+
+        典型的应用场景如下：在某个维持了某些数据库连接的程序运行时重启了数据库，
+        或在某个防火墙隔离的网络中访问远程数据库时重启了防火墙。
+        """
+
+        import pymysql
+        from DBUtils import SteadyDB
+        self.dbc = SteadyDB.connect(
+            creator=pymysql,
+            host=host, user=user,
+            passwd=passwd,
+            database=database if database else None,
+            port=port,
+            charset='utf8mb4',
+            use_unicode=True,
+            autocommit=False,
+            # 流式、字典访问
+            cursorclass=pymysql.cursors.SSDictCursor)
+
+    @property
+    def dbcur(self):
+        try:
+            # if self.dbc.unread_result:
+            #     self.dbc.get_rows()
+            return self.dbc.cursor()
+        except (mysql_connector.OperationalError, mysql_connector.InterfaceError):
+            self.dbc.ping(reconnect=True)
+            return self.dbc.cursor()
+
+    # def begin_transaction(self):
+    #     self.dbc.begin()
+    #
+    # def end_transaction(self):
+    #     self.dbc.commit()
+
+    def begin_transaction(self):
+        return self.dbcur.execute("BE"+"GIN;")
+
+    def end_transaction(self):
+        return self.dbcur.execute("COMMIT;")
+
+    def rollback(self):
+        return self.dbcur.execute("rollback;")
+
+    def fetch(self, dbcur):
+        result = dbcur.fetchone()
+        while result is not None:
+            result = dbcur.fetchone()
+
+    def _execute(self, sql, values=None):
+        with self.dbcur as dbcur:
+            try:
+                if values:
+                    dbcur.execute(sql, values or [])
+                else:
+                    dbcur.execute(sql+';')
+
+                return dbcur.lastrowid, dbcur.fetchall()
+            except mysql_connector.DatabaseError as ex:
+                if ex.errno == 1205:
+                    logging.critical(traceback.format_exc())
+                else:
+                    raise
+
+    @staticmethod
+    def escape(string):
+        return '`%s`' % string
+
+    def save_into_db(self, sql, datas, batch_size=1000):
+        for i in range((len(datas) + batch_size - 1) // batch_size):
+            self.begin_transaction()
+            self._executemany(sql, datas[i * batch_size:(i + 1) * batch_size])
+            self.end_transaction()
+
+    def _executemany(self, sql_query, params):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            dbcur = self.dbcur
+            # logging.debug("<sql: %s>" % sql_query)
+            dbcur.execute("BE" + "GIN;")
+            dbcur.executemany(sql_query, params)
+            dbcur.execute("COMMIT;")
+            return dbcur.fetchall()
+
+    def _get_insert_sql(self, _mode=INSERT_NORMAL, _tablename=None, **values):
+        if _mode not in self.INSERT_MODES:
+            return None
+
+        tablename = self.escape(_tablename)
+        res_values = []
+        res_keys = []
+        if values:
+            for k, v in values.items():
+                res_keys.append(k)
+                res_values.append(v)
+            _keys = ", ".join((self.escape(k) for k in res_keys))
+            _values = ", ".join([self.PLACEHOLDER, ] * len(values))
+            sql_query = "%s INTO %s (%s) VALUES (%s)" % (_mode, tablename, _keys, _values)
+        else:
+            sql_query = "%s INTO %s DEFAULT VALUES" % (_mode, tablename)
+        logging.debug("<sql: %s>", sql_query)
+        return sql_query, res_keys, res_values
+
+    def _insert(self, _mode=INSERT_NORMAL, _tablename=None, **values):
+        sql, _, _ = self._get_insert_sql(_mode, _tablename, **values)
+
+        if values:
+            dbcur = self._execute(sql, list(itervalues(values)))
+        else:
+            dbcur = self._execute(sql)
+        return dbcur.lastrowid
+
+    def insert_many_with_dict_list(self, tablename, data, mode='INSERT IGNORE', batch_size=5000):
+        if not data:
+
+            return
+
+        tablename = self.escape(tablename)
+        values = data[0]
+        if values:
+            _keys = ", ".join((self.escape(k) for k in values))
+            _values = ", ".join([self.PLACEHOLDER, ] * len(values))
+            # sql_query = "%s INTO %s (%s) VALUES (%s)" % (mode, tablename, _keys, _values)
+            sql_query = "%s INTO %s (%s) VALUES (%s)" % (mode, tablename, _keys, _values)
+        else:
+            # sql_query = "%s INTO %s DEFAULT VALUES" % (mode, tablename)
+            sql_query = "%s INTO %s DEFAULT VALUES" % (mode, tablename)
+        # self.logger.debug("<sql: %s>", sql_query)
+        # self.logger.debug("%s", tuple(data[0][k] for k in values))
+
+        size = max([1, (len(data) + batch_size - 1) // batch_size])
+        for i in range(size):
+            # self.logger.info("{} {}/{}".format(mode, batch_size * (i + 1), len(data)))
+            self._executemany(sql_query, [list(d[k] for k in values) for d in data[i * batch_size:(i + 1) * batch_size]])
+            # self.begin_transaction()
+            # self._executemany(sql_query, [list(d[k] for k in values) for d in data[i * batch_size:(i + 1) * batch_size]])
+            # self.end_transaction()
+        return len(data)
+
+
 class BaseDB(object):
     placeholder = '%s'
 
@@ -503,7 +693,11 @@ class BaseDB(object):
     def init_db(self):
         self.conn = d_b_c.connect(user=self.user, password=self.passwd,
                                   host=self.host, port=self.port,
-                                  database=self.database
+                                  database=self.database,
+                                  charset='utf8',
+                                  # use_unicode=True,
+                                  # autocommit=False,
+                                  # 流式、字典访问
                                   # , autocommit=True
                                   )
         database = self.database
@@ -586,7 +780,7 @@ class BaseDB(object):
 
     def _executemany(self, sql_query, params, raise_on_error=True):
         dbcur = self.dbcur
-        self.logger.debug("<sql: %s>" % sql_query)
+        # self.logger.debug("<sql: %s>" % sql_query)
         try:
             dbcur.executemany(sql_query, params)
             return dbcur
@@ -684,16 +878,16 @@ class BaseDB(object):
         else:
             # sql_query = "%s INTO %s DEFAULT VALUES" % (mode, tablename)
             sql_query = "%s INTO %s DEFAULT VALUES" % (mode, tablename)
-        self.logger.debug("<sql: %s>", sql_query)
-        self.logger.debug("%s", tuple(data[0][k] for k in values))
+        # self.logger.debug("<sql: %s>", sql_query)
+        # self.logger.debug("%s", tuple(data[0][k] for k in values))
 
         size = (len(data) + batch_size - 1) // batch_size
         for i in range(size):
-            self.logger.info("{} {}/{}".format(mode, batch_size * (i + 1), len(data)))
+            # self.logger.info("{} {}/{}".format(mode, batch_size * (i + 1), len(data)))
+            # self._executemany(sql_query, [list(d[k] for k in values) for d in data[i * batch_size:(i + 1) * batch_size]])
+            self.begin_transaction()
             self._executemany(sql_query, [list(d[k] for k in values) for d in data[i * batch_size:(i + 1) * batch_size]])
-            # self.begin_transaction()
-            # self._executemany(sql_query, [list(d[k] for k in values) for d in datas[i * batch_size:(i + 1) * batch_size]])
-            # self.end_transaction()
+            self.end_transaction()
         return len(data)
 
     def _update(self, _tablename=None, _where="1=0", _where_values=None, **values):
@@ -746,17 +940,17 @@ class BaseDB(object):
     def __rollback__(self):
         self.conn.rollback()
 
-    def __execute__(self, sql, vals):
+    def __execute__(self, sql, vals=None):
         try:
-            self.cursor.execute(sql, vals)
+            dbcur = self.dbcur
+            dbcur.execute(sql, vals)
         except psycopg2.InternalError as e:
             if e.pgerror == 'ERROR:  current transaction is aborted, commands ignored until end of transaction block\n':
                 self.__rollback__()
                 return self.__execute__(sql, vals)
             raise e
         else:
-            self.__commit__()
-            return self.cursor
+            return dbcur
 
     def select(self, tab, query_dict, cols_selected='*', filter_='='):
         cols, vals = zip(*query_dict.items())

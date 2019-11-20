@@ -53,13 +53,13 @@ class Migration(object):
                 time_use = time.time() - time_start
                 proc = (idx + 1) / count
 
-                utils.g_log.info('[{:012d}/{:012d}/{:012d}] {:8s}/{:8s}  ...{:.2f}%   {}:{} -> {}:{}'.format(
-                    self.database_to.get_count(data_to),
+                utils.g_log.info('[{:012d}/{:012d}] {:0>8s}/{:0>8s}  ...{:.2f}%   {}/{} -> {}/{}'.format(
+                    # self.database_to.get_count(data_to),
                     idx + 1, count, datetime.timedelta(seconds=time_use).__str__().split('.')[0],
                     datetime.timedelta(seconds=time_use / proc).__str__().split('.')[0],
                     proc * 100,
-                    self.database_from.__class__.__name__[:-1], data_from,
-                    self.database_to.__class__.__name__[:-1], data_to,
+                    self.database_from, data_from,
+                    self.database_to, data_to,
                     ))
                 utils.run_task_auto_retry(self.database_to.save_data, kwargs={"data": action, 'index': data_to})
                 action = []

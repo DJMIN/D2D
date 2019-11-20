@@ -4,9 +4,17 @@
 
 import os
 import random
+import re
+import time
+import traceback
+import openpyxl.utils.exceptions
+import openpyxl
+import xlrd
+import json
 import logging
+import datetime
 from abc import ABC
-
+from pathlib import Path
 from .myutils import EsModel
 from .myutils import BaseDB
 from .myutils import ClientPyMySQL
@@ -20,6 +28,10 @@ def get_realpath():
 class ElasticSearchD(EsModel):
     def __init__(self, hosts):
         super().__init__(hosts)
+        self.hosts = hosts
+
+    def __repr__(self):
+        return f'ElasticSearch:{self.hosts}'
 
     def get_data(self, index, *args, **kwargs):
         for i in self.scan(query={}, index=index, *args, **kwargs):
@@ -103,7 +115,7 @@ class ElasticSearchD(EsModel):
             if isinstance(value, int):
                 properties[name]['type'] = 'long'
             elif isinstance(value, str):
-                properties[name]['type'] = {
+                properties[name] = {
                     "type": "text",
                     "fields": {
                         "keyword": {
@@ -215,6 +227,12 @@ class ElasticSearchD(EsModel):
 class MySqlD(ClientPyMySQL, ABC):
     def __init__(self, host, port, user, passwd, database=None):
         super().__init__(host, port, database, user, passwd)
+        self.host = host
+        self.port = port
+        self.database = database
+
+    def __repr__(self):
+        return f'MySQL:{self.host}:{self.port}/{self.database}'
 
     def get_data(self, index, *args, **kwargs):
         return self._execute(sql=f'select * from {index}', *args, **kwargs)[1]
@@ -262,7 +280,7 @@ class MySqlD(ClientPyMySQL, ABC):
             if isinstance(value, int):
                 _type = 'bigint'
             elif isinstance(value, str):
-                if pks.find(name) > -1:
+                if name in pks.split(','):
                     _type = 'varchar(256)'
                 else:
                     _type = 'text'
@@ -293,3 +311,213 @@ class MySqlD(ClientPyMySQL, ABC):
         self._execute(sql)
         self.end_transaction()
 
+
+def get_line_num_fast(filename):
+    count_n = 0
+    count_r = 0
+    fp = open(filename, "rb")
+    while 1:
+        buffer = fp.read(1 * 1024 * 1024)
+        if not buffer:
+            break
+        count_n += buffer.count(b'\n')
+        count_r += buffer.count(b'\r')
+    fp.close()
+    return count_n or count_r
+
+
+class BaseFileD(object):
+    def __init__(self, path, extension):
+        self.path = path
+        self.extension = extension
+        self._file_w = {}
+        self._indexes_path = {}
+
+    def __repr__(self):
+        return f'{self.extension}:{self.path}'
+
+    def __del__(self):
+        for f in self._file_w.values():
+            try:
+                f.close()
+            except Exception as e:
+                logging.warning(e)
+
+    def gen_path_by_index(self, index):
+        if index not in self._indexes_path:
+            path = f'{self.path}{os.sep}{os.sep.join(index.split("-"))}.{self.extension}'
+            self._indexes_path[index] = path
+        return self._indexes_path[index]
+
+    def get_indexes(self):
+        res = []
+        real_path = os.path.split(os.path.realpath(self.path))[0]
+        for root, fs, fns in os.walk(self.path):
+            for fn in fns:
+                path = f'{root}{os.pathsep}{fn}'
+                (filepath, tempfilename) = os.path.split(path)
+                (filename, extension) = os.path.splitext(tempfilename)
+                if extension not in [f'.{self.extension}']:
+                    continue
+                index = '-'.join(list(filepath.replace(real_path, '', 1).split(os.sep)) + [filename.decode()])
+                res.append(index)
+                self._indexes_path[index] = path
+        return res
+
+    def get_count(self, index):
+        return get_line_num_fast(self.gen_path_by_index(index))
+
+    @classmethod
+    def w_open_func(cls, *args, **kwargs):
+        return open(*args, **kwargs)
+
+    def create_index(self, index, data, pks='id'):
+        if not os.path.exists(self.path):
+            try:
+                os.makedirs(self.path)
+            except Exception as e:
+                logging.warning(e)
+                Path(self.path).mkdir(parents=True, exist_ok=True)
+        path = self.gen_path_by_index(index)
+        if os.path.exists(path):
+            os.rename(path, f"{path}.{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.bak")
+        self._file_w.setdefault(index, self.w_open_func(path, 'w'))
+
+
+class CsvD(BaseFileD):
+    def __init__(self, path, split=',', extension='csv'):
+        super().__init__(path, extension)
+        self.path = path
+        self.split = split
+        self.extension = extension
+        self._file_w = {}
+        self._indexes_path = {}
+
+    def get_data(self, index):
+        with open(self.gen_path_by_index(index), 'r') as f:
+            keys = list(k.replace("'", '').replace('"', '') for k in f.readline().strip().split(self.split))
+            for line in f:
+                yield {keys[idx]: v for idx, v in enumerate(eval(line))}
+
+    def save_data(self, index, data, *args, **kwargs):
+        self._file_w[index].writelines((','.join(v.__repr__() for v in d.values()) + '\n') for d in data)
+
+    def create_index(self, index, data, pks='id'):
+        super(self.__class__, self).create_index(index, data)
+        self._file_w[index].write((','.join(v.__str__() for v in data.keys()) + '\n'))
+
+
+class JsonListD(BaseFileD):
+    def __init__(self, path, extension='json'):
+        super().__init__(path, extension)
+        self.path = path
+        self.extension = extension
+        self._file_w = {}
+        self._indexes_path = {}
+
+    def get_data(self, index):
+        with open(self.gen_path_by_index(index), 'r') as f:
+            for line in f:
+                yield json.loads(line.strip())
+
+    def save_data(self, index, data, *args, **kwargs):
+        self._file_w[index].writelines((json.dumps(d) + '\n') for d in data)
+
+
+class XlsIbyFileD(BaseFileD):
+    ILLEGAL_CHARACTERS_RE = re.compile(r'[\000-\010]|[\013-\014]|[\016-\037]')
+
+    def __init__(self, path, extension='xls'):
+        self.path = path
+        self.extension = extension
+        self._file_w = {}
+        self._file_line_num = {}
+        self._file_w_now_sheet = {}
+        self._file_w_now_sheet_num = {}
+        self._file_w_now_sheet_line_num = {}
+        self._file_w_now_keys = {}
+        self._indexes_path = {}
+        super().__init__(path, extension)
+
+    def get_count(self, index):
+        all_line = 0
+        workbook = xlrd.open_workbook(self.gen_path_by_index(index))
+        for idx, name in enumerate(workbook.sheet_names()):
+            logging.info(f'sheet:{idx}:{name}')
+            worksheet = workbook.sheet_by_index(idx)
+            all_line += worksheet.nrows
+        return all_line
+
+    def get_data(self, index):
+        workbook = xlrd.open_workbook(self.gen_path_by_index(index))  # 文件路径
+        # 获取所有sheet的名字
+        for idx, name in enumerate(workbook.sheet_names()):
+            logging.info(f'sheet:{idx}:{name}')
+            worksheet = workbook.sheet_by_index(idx)
+            nrows = worksheet.nrows
+            keys = {i: key.lower() for i, key in enumerate(worksheet.row_values(0))}
+            for line_num in range(1, nrows):
+                line = worksheet.row_values(line_num)
+                data = {keys[i]: key for i, key in enumerate(line)}
+                yield data
+
+    def save_data(self, index, data, *args, **kwargs):
+        for d in data:
+            row = [str(d.get(key, '')) for key in self._file_w_now_keys[index]]
+            self.write_row(self._file_w_now_sheet[index], row)
+            self._file_w_now_sheet_line_num[index] += 1
+            if self._file_w_now_sheet_line_num[index] > 500000:
+                self._file_w_now_sheet_num[index] += 1
+                self._file_w_now_sheet[index] = self._file_w[index].create_sheet(
+                    index=self._file_w_now_sheet_num[index])
+                keys = [key for key in d.keys()]
+                self.write_row(self._file_w_now_sheet[index], keys)
+                self._file_w_now_sheet_line_num[index] = 1
+                self._file_w_now_keys[index] = keys
+
+    @classmethod
+    def write_row(cls, ws, row, indices=None):
+        try:
+            ws.append(row)
+        except openpyxl.utils.exceptions.IllegalCharacterError as ex:
+            if not indices:
+                logging.warning('Failed to write excel: {}'.format(ex))
+                return
+            for index in indices:
+                row[index] = re.sub(cls.ILLEGAL_CHARACTERS_RE, '', row[index])
+            try:
+                ws.append(row)
+            except Exception as ex:
+                logging.warning('Failed to write excel: {}\n{}'.format(ex, traceback.format_exc()))
+
+    @classmethod
+    def w_open_func(cls, *args, **kwargs):
+        wb = openpyxl.Workbook()
+        return wb
+
+    def create_index(self, index, data, pks='id'):
+        super().create_index(index, data)
+        self._file_w_now_sheet_num[index] = 0
+        self._file_w_now_sheet[index] = self._file_w[index].create_sheet(index=self._file_w_now_sheet_num[index])
+        keys = [key for key in data.keys()]
+        self.write_row(self._file_w_now_sheet[index], keys)
+        self._file_w_now_sheet_line_num[index] = 1
+        self._file_w_now_keys[index] = keys
+
+    def __del__(self):
+        for idx, f in self._file_w.items():
+            while True:
+                try:
+                    start_time = time.time()
+                    f.save(self._indexes_path[idx])
+                    logging.info('[use {:.2f}s] write excel fin: {}'.format(time.time()-start_time, self._indexes_path[idx]))
+                    break
+                except Exception as e:
+                    logging.error(e)
+                    traceback.print_exc()
+                    time.sleep(5)
+
+
+class XlsxIbyFileD(XlsIbyFileD):
+    def __init__(self, path, extension='xlsx'):
+        super().__init__(path=path, extension=extension)

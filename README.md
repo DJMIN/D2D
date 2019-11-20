@@ -73,7 +73,7 @@ sudo python3.8 get-pip.py
     
 ## RUN 如何运行
 
-1. 配置好run.py文件里Migration类的参数（现已有12个demo函数在文件中，可以参照修改）
+1. 配置好run.py文件里Migration类的参数（现已有15个demo函数在文件中，可以参照修改）
 1. 命令行执行python run.py
 1. 观察输出日志，耐心等待程序执行完毕
 
@@ -84,6 +84,10 @@ database_to： 数据库类 如： ElasticSearchD, MySqlD, CsvD, JsonListD, XlsI
 data_from： index名或table名或文件名（如不带则会遍历所有数据库表进行迁移到指定数据库同名表）    
 data_to： index名或table名或文件名  
     
+
+## 注意事项
+
+限于mongodb数据库机制，无法高效自动去重，现在为了追求入库效率,如有重名collection会先重命名原始collection，格式为 原collection+时间+bak，再新建collection进行入库
 
 ## TODO List 
 

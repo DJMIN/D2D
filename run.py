@@ -2,7 +2,7 @@
 # coding: utf-8
 
 import datetime
-from utils.db import ElasticSearchD, MySqlD, CsvD, JsonListD, XlsIbyFileD, XlsxIbyFileD
+from utils.db import ElasticSearchD, MySqlD, CsvD, JsonListD, XlsIbyFileD, XlsxIbyFileD, MongoDBD
 from task import Migration
 
 
@@ -129,5 +129,35 @@ def test12():
     task.run()
 
 
+def test13():
+    task = Migration(
+        database_from=CsvD(path='./data', encoding='utf8'),
+        database_to=MongoDBD(hosts="mongodb://localhost:27017/", database='test'),
+        data_from='user',
+        data_to=f"user"
+    )
+    task.run()
+
+
+def test14():
+    task = Migration(
+        database_from=MongoDBD(hosts="mongodb://localhost:27017/", database='test'),
+        database_to=MongoDBD(hosts="mongodb://localhost:27017/", database='test'),
+        data_from='user',
+        data_to=f"user1"
+    )
+    task.run()
+
+
+def test15():
+    task = Migration(
+        database_from=MongoDBD(hosts="mongodb://localhost:27017/", database='test'),
+        database_to=CsvD(path='./data', encoding='utf8'),
+        data_from='user',
+        data_to=f"user1"
+    )
+    task.run()
+
+
 if __name__ == '__main__':
-    test12()
+    test12()  # test12是从csv到csv不需要网络配置可以直接尝试运行

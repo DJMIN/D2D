@@ -12,7 +12,10 @@ import openpyxl
 import xlrd
 import json
 import logging
+import pymongo
 import datetime
+import pymongo.errors
+# import bson.objectid
 from abc import ABC
 from pathlib import Path
 from .myutils import EsModel
@@ -524,3 +527,45 @@ class XlsIbyFileD(BaseFileD):
 class XlsxIbyFileD(XlsIbyFileD):
     def __init__(self, path, extension='xlsx'):
         super().__init__(path=path, extension=extension)
+
+
+class MongoDBD(object):
+    def __init__(self, hosts="mongodb://localhost:27017/", database='test', batch_size=1000):
+        self.hosts = hosts
+        self.batch_size = batch_size
+        self.database = database
+        self.client = pymongo.MongoClient(self.hosts)
+        self.db_list = self.client.list_database_names()
+        self.db = self.client[self.database]
+        self.collection_list = self.db.list_collection_names()
+
+    def __repr__(self):
+        return f'MongoDB:{self.hosts}/{self.database}'
+
+    def get_data(self, index, *args, **kwargs):
+        for d in self.db[index].find().batch_size(self.batch_size):
+            d.pop('_id')
+            yield d
+            # print(list(type(v) for k, v in d.items()))
+        #     ObjectId
+        # return
+
+    def save_data(self, index, data, *args, **kwargs):
+        res = self.db[index].insert_many(data)
+        return res.inserted_ids
+
+    def get_indexes(self):
+        return list(self.db.list_collection_names())
+
+    def get_count(self, index):
+        return self.db[index].find().count()
+
+    def create_index(self, index, data, pks='id'):
+        # sql = """SET NAMES utf8mb4;"""
+        try:
+            self.db[index].rename(f'{index}_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}_bak')
+        except pymongo.errors.OperationFailure as e:
+            if e.__str__() != 'source namespace does not exist':
+                raise
+
+

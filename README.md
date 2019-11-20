@@ -90,6 +90,24 @@ data_to： index名或table名或文件名
 
 ## 注意事项
 
+程序是如何工作的：    
+
+以mysql为例，把一个database的一张表作为一个操作的最小单元（后称表格、Table），转移到其他数据库的Table中
+
+
+现在已经支持的数据库类型：
+
+数据库类型         | Table来源     | Table名 
+-                | -            | -
+MySQL            | tables       | tablename|
+ElasticSearch    | indexes      | index name|
+MongoDB          | collections  | collection name|
+Excel            | file         | filename|
+.json            | file         | filename|
+.csv             | file         | filename|
+
+
+
 在入库mongodb时，限于mongodb数据库机制，无法高效自动去重，现在为了追求mongodb入库效率,
 如mongodb有重名collection会先重命名原始collection，格式为 原collection+时间+bak，再新建collection进行入库
 

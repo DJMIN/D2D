@@ -47,6 +47,7 @@ sudo python3.8 get-pip.py
 ## RUN
 
 ####Migration类的参数定义
+
 × database_from： 数据库类    
 × database_to： 数据库类    
 × data_from： index名或table名或文件名，如不带则会遍历所有数据库表进行迁移到指定数据库同名表    
@@ -56,6 +57,8 @@ sudo python3.8 get-pip.py
 
 ## TODO List
 
+1. mysql auto adjust data length
+1. mysql auto create index
 1. mongodb
 1. .sql file
 1. excel index by Multi sheet(XlsIbySheetD XlsxIbySheetD)

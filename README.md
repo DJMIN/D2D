@@ -105,7 +105,7 @@ data_to： index名或table名或文件名
     <tr> <td>MySQL</td>            <td>tables</td>            <td>tablename</td> </tr>
     <tr> <td>ElasticSearch</td>    <td>indexes</td>           <td>index name</td> </tr>
     <tr> <td>MongoDB</td>          <td>collections</td>       <td>collection name</td> </tr>
-    <tr> <td>Excel</td>            <td>file</td>              <td>filename</td> </tr>
+    <tr> <td>Excel</td>            <td>file all sheet</td>              <td>filename</td> </tr>
     <tr> <td>.json</td>            <td>file</td>              <td>filename</td> </tr>
     <tr> <td>.csv</td>             <td>file</td>              <td>filename</td> </tr>
 </table>
@@ -113,6 +113,8 @@ data_to： index名或table名或文件名
 * 在入库mongodb时，限于mongodb数据库机制，无法高效自动去重，现在为了追求mongodb入库效率,
 如mongodb有重名collection会先重命名原始collection，格式为 原collection+时间+bak，再新建collection进行入库
 
+* Logstash是类似的开源项目，但配置繁琐，学习曲线相对陡峭，入库效率不高。
+本项目力求用最少的代码、最简单的配置解决用户最迫切的和核心需求--数据快速转移
 ## TODO List 
 
 1. mysql auto adjust data length

@@ -90,25 +90,27 @@ data_to： index名或table名或文件名
 
 ## 注意事项
 
-程序是如何工作的：    
+* 程序是如何工作的：    
 
 以mysql为例，把一个database的一张表作为一个操作的最小单元（后称表格、Table），转移到其他数据库的Table中
 
 
-现在已经支持的数据库类型：
+* 现在已经支持的数据库类型：
+<table>
+    <tr>
+    <th>数据库类型</th>
+    <th>Table来源</th>
+    <th>Table名</th>
+    </tr>
+    <tr> <td>MySQL</td>            <td>tables</td>            <td>tablename</td> </tr>
+    <tr> <td>ElasticSearch</td>    <td>indexes</td>           <td>index name</td> </tr>
+    <tr> <td>MongoDB</td>          <td>collections</td>       <td>collection name</td> </tr>
+    <tr> <td>Excel</td>            <td>file</td>              <td>filename</td> </tr>
+    <tr> <td>.json</td>            <td>file</td>              <td>filename</td> </tr>
+    <tr> <td>.csv</td>             <td>file</td>              <td>filename</td> </tr>
+</table>
 
-数据库类型         | Table来源     | Table名 
--                | -            | -
-MySQL            | tables       | tablename|
-ElasticSearch    | indexes      | index name|
-MongoDB          | collections  | collection name|
-Excel            | file         | filename|
-.json            | file         | filename|
-.csv             | file         | filename|
-
-
-
-在入库mongodb时，限于mongodb数据库机制，无法高效自动去重，现在为了追求mongodb入库效率,
+* 在入库mongodb时，限于mongodb数据库机制，无法高效自动去重，现在为了追求mongodb入库效率,
 如mongodb有重名collection会先重命名原始collection，格式为 原collection+时间+bak，再新建collection进行入库
 
 ## TODO List 

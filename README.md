@@ -1,19 +1,19 @@
 # D2D
-Database to database, The fastest migration tool for all database by scheduled tasks with
+Database To Database, The fastest migration tool for all database by scheduled tasks with
 2 lines of code.    
-(.csv .sql .json .xls .xlsx mysql ElasticSearch excel mongodb sqlite redis...) 
+(.csv .sql .json .xls .xlsx mysql ElasticSearch excel mongodb sqlite redis...)    
 2行代码即可使用最高效的方式最快的速度在各种数据库中迁移数据，并且可以实行计划任务，定时迁移增量数据
 
-Can automatically build a table based on data
+Can automatically build a table based on data    
 可以根据数据自动建库建表，而无需操心数据格式和类型
 
-Has detailed logging
+Has detailed logging    
 拥有详细的日志记录
 
 
-## Install
+## Install 如何安装
 
-
+如果是互联网用户
 python3.7以上
 
 ###### python3 centos
@@ -46,39 +46,44 @@ sudo python3.8 get-pip.py
     cd D2D
     pip3.7 install -r requirements.txt
 
-## RUN
-
-###Migration类的参数定义
-
-× database_from： 数据库类    
-× database_to： 数据库类    
-× data_from： index名或table名或文件名，如不带则会遍历所有数据库表进行迁移到指定数据库同名表    
-× data_to： index名或table名或文件名，如不带则会遍历所有数据库表进行迁移到指定数据库同名表    
-    
-    python run.py
 
 ---
 
 如果是内网用户无法连接互联网下载python环境，无法pip install，这里贴心的为你准备了python虚拟环境包，使用方法：
 
+1.下载整个项目zip包解压到本地
+
     cd D2D
     vim venv-ubuntu-x64/bin/activate
     
-修改venv-ubuntu-x64/bin/activate文件的这一行(应该是第40行)为你项目文件的目录下的D2D/venv-ubuntu-x64路径，这里必须是绝对路经
+2.修改venv-ubuntu-x64/bin/activate文件的这一行(应该是第40行)为你项目文件的目录下的D2D/venv-ubuntu-x64路径，这里必须是绝对路经
 
     VIRTUAL_ENV="/home/user/PycharmProjects/D2D/venv-ubuntu-x64"
     
     
-然后回到终端窗口
+3.然后回到终端窗口执行命令，如果是linux64位系统则使用venv-ubuntu-x64，windows则使用venv-windows-x64
 
     source venv-ubuntu-x64/bin/activate
     
-最后就可以开开心心 
+4.最后就可以开开心心 
 
     python run.py
     
+## RUN 如何运行
+
+1. 配置好run.py文件里Migration类的参数（现已有11个demo函数在文件中，可以参照修改）
+1. 命令行执行python run.py
+1. 观察输出日志，耐心等待程序执行完毕
+
+######Migration类的参数定义
+
+database_from： 数据库类 如： ElasticSearchD, MySqlD, CsvD, JsonListD, XlsIbyFileD, XlsxIbyFileD等     
+database_to： 数据库类 如： ElasticSearchD, MySqlD, CsvD, JsonListD, XlsIbyFileD, XlsxIbyFileD等    
+data_from： index名或table名或文件名（如不带则会遍历所有数据库表进行迁移到指定数据库同名表）    
+data_to： index名或table名或文件名  
     
-## TODO List
+
+## TODO List 
 
 1. mysql auto adjust data length
 1. mysql auto create index

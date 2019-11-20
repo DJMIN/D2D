@@ -13,10 +13,12 @@ Has detailed logging
 
 ## Install 如何安装
 
-如果是互联网用户
-python3.7以上
+#### 如果是互联网用户
+
+##### 安装python3.7以上如有可跳过
 
 ###### python3 centos
+
 ```shell script
 yum install -y wget tar libffi-devel zlib-devel bzip2-devel openssl-devel ncurses-devel sqlite-devel readline-devel tk-devel gcc make 
 wget https://www.python.org/ftp/python/3.7.0/Python-3.7.0.tgz
@@ -26,8 +28,8 @@ cd Python-3.7.0
 make&&make install
 ```
 
-
 ###### python3 ubuntu
+
 ```shell script
 sudo apt update
 sudo apt-get update
@@ -42,14 +44,15 @@ curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 sudo python3.8 get-pip.py 
 ```
 
+##### 安装python依赖包
+
     git clone https://github.com/DJMIN/D2D.git
     cd D2D
     pip3.7 install -r requirements.txt
 
-
 ---
 
-如果是内网用户无法连接互联网下载python环境，无法pip install，这里贴心的为你准备了python虚拟环境包，使用方法：
+#### 如果是内网用户无法连接互联网下载python环境，无法pip install安装python依赖包，这里贴心的为你准备了python虚拟环境包，使用方法：
 
 1.下载整个项目zip包解压到本地
 
@@ -77,7 +80,7 @@ sudo python3.8 get-pip.py
 1. 命令行执行python run.py
 1. 观察输出日志，耐心等待程序执行完毕
 
-######Migration类的参数定义
+###### Migration类的参数定义
 
 database_from： 数据库类 如： ElasticSearchD, MySqlD, CsvD, JsonListD, XlsIbyFileD, XlsxIbyFileD等     
 database_to： 数据库类 如： ElasticSearchD, MySqlD, CsvD, JsonListD, XlsIbyFileD, XlsxIbyFileD等    
@@ -93,7 +96,8 @@ data_to： index名或table名或文件名
 
 1. mysql auto adjust data length
 1. mysql auto create index
-1. mongodb
+1. mongodb primary key
+1. mongodb duplicated
 1. ftp file
 1. sftp file
 1. .sql file

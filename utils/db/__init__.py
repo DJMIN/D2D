@@ -26,9 +26,10 @@ def get_realpath():
 
 
 class ElasticSearchD(EsModel):
-    def __init__(self, hosts):
+    def __init__(self, hosts, ik=False):
         super().__init__(hosts)
         self.hosts = hosts
+        self.ik = ik
 
     def __repr__(self):
         return f'ElasticSearch:{self.hosts}'
@@ -123,9 +124,10 @@ class ElasticSearchD(EsModel):
                             "ignore_above": 1024
                         }
                     },
-                    "analyzer": "ik_max_word",
-                    "search_analyzer": "ik_smart"
                 }
+                if self.ik:
+                    properties[name]["fields"]["analyzer"] = "ik_max_word"
+                    properties[name]["fields"]["search_analyzer"] = "ik_smart"
         if self.es.indices.exists(index=index) is not True:
             res = self.es.indices.create(index=index, body=pairs)
             if not res:

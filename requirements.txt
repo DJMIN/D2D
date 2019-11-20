@@ -9,7 +9,6 @@ PyMySQL
 click
 tornado
 python-dateutil
-telethon
 six
 urllib3
 phone

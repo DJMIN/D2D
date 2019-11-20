@@ -1,0 +1,34 @@
+Metadata-Version: 2.1
+Name: cryptg
+Version: 0.2.post0
+Summary: Cryptographic utilities for Telegram.
+Home-page: https://github.com/cher-nov/cryptg
+Author: Dmitry D. Chernov
+Author-email: blackdoomer@yandex.ru
+License: CC0
+Download-URL: https://github.com/cher-nov/cryptg/releases
+Description: |logo|
+        
+        cryptg
+        ======
+        
+        This is a small C extension for Python 3 to help libraries that want to
+        work with the Telegram API, which uses the uncommon AES-IGE mode for it.
+        
+        .. |logo| image:: https://raw.githubusercontent.com/cher-nov/cryptg/master/logo.png
+            :target: https://github.com/cher-nov/cryptg
+            :alt: cryptg
+        
+Keywords: telegram crypto cryptography mtproto aes
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Security :: Cryptography
+Classifier: License :: CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Requires-Python: >=3.3
+Description-Content-Type: text/x-rst

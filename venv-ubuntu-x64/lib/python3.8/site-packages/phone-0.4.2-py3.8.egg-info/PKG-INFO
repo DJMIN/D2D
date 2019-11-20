@@ -1,0 +1,14 @@
+Metadata-Version: 1.1
+Name: phone
+Version: 0.4.2
+Summary: 手机号码库
+Home-page: https://github.com/ls0f/phone
+Author: ls0f
+Author-email: admin@lovedboy.com
+License: BSD
+Description: UNKNOWN
+Platform: UNKNOWN
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python
+Classifier: Intended Audience :: Developers
+Classifier: Operating System :: OS Independent

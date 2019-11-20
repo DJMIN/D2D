@@ -12,6 +12,8 @@ Has detailed logging
 
 
 ## Install
+
+
 python3.7以上
 
 ###### python3 centos
@@ -46,7 +48,7 @@ sudo python3.8 get-pip.py
 
 ## RUN
 
-####Migration类的参数定义
+###Migration类的参数定义
 
 × database_from： 数据库类    
 × database_to： 数据库类    
@@ -55,6 +57,27 @@ sudo python3.8 get-pip.py
     
     python run.py
 
+---
+
+如果是内网用户无法连接互联网下载python环境，无法pip install，这里贴心的为你准备了python虚拟环境包，使用方法：
+
+    cd D2D
+    vim venv-ubuntu-x64/bin/activate
+    
+修改venv-ubuntu-x64/bin/activate文件的这一行(应该是第40行)为你项目文件的目录下的D2D/venv-ubuntu-x64路径，这里必须是绝对路经
+
+    VIRTUAL_ENV="/home/user/PycharmProjects/D2D/venv-ubuntu-x64"
+    
+    
+然后回到终端窗口
+
+    source venv-ubuntu-x64/bin/activate
+    
+最后就可以开开心心 
+
+    python run.py
+    
+    
 ## TODO List
 
 1. mysql auto adjust data length

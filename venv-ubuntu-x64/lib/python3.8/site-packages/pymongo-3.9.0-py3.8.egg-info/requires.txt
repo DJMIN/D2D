@@ -1,0 +1,17 @@
+
+[encryption]
+pymongocrypt
+
+[gssapi]
+pykerberos
+
+[snappy]
+python-snappy
+
+[srv]
+dnspython<2.0.0,>=1.16.0
+
+[tls]
+
+[zstd]
+zstandard

@@ -1,4 +1,4 @@
-gevent
+# gevent
 DBUtils
 # mysql
 redis>=3.2.1
@@ -18,12 +18,12 @@ gunicorn
 chardet
 flask
 flask_sqlalchemy
-
+pandas
 # flask_mongoengine 安装报错 需要以下三个包
 rednose
 nose
 coverage
-
+pytest
 flask_mongoengine
 Flask-Migrate
 mongoengine

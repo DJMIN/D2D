@@ -121,8 +121,8 @@ def test11():
 
 def test12():
     task = Migration(
-        database_from=CsvD(path='./data'),
-        database_to=CsvD(path='./data1'),
+        database_from=CsvD(path='./data', encoding='utf8'),
+        database_to=CsvD(path='./data1', encoding='utf8'),
         data_from='user',
         data_to=f"user_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_bak"
     )

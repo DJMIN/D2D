@@ -329,9 +329,10 @@ def get_line_num_fast(filename):
 
 
 class BaseFileD(object):
-    def __init__(self, path, extension):
+    def __init__(self, path, extension, encoding='utf8'):
         self.path = path
         self.extension = extension
+        self.encoding = encoding
         self._file_w = {}
         self._indexes_path = {}
 
@@ -383,12 +384,12 @@ class BaseFileD(object):
         path = self.gen_path_by_index(index)
         if os.path.exists(path):
             os.rename(path, f"{path}.{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.bak")
-        self._file_w.setdefault(index, self.w_open_func(path, 'w'))
+        self._file_w.setdefault(index, self.w_open_func(path, 'w', encoding=self.encoding))
 
 
 class CsvD(BaseFileD):
-    def __init__(self, path, split=',', extension='csv'):
-        super().__init__(path, extension)
+    def __init__(self, path, split=',', extension='csv', encoding='utf8'):
+        super().__init__(path, extension, encoding)
         self.path = path
         self.split = split
         self.extension = extension
@@ -396,7 +397,7 @@ class CsvD(BaseFileD):
         self._indexes_path = {}
 
     def get_data(self, index):
-        with open(self.gen_path_by_index(index), 'r') as f:
+        with open(self.gen_path_by_index(index), 'r', encoding=self.encoding) as f:
             keys = list(k.replace("'", '').replace('"', '') for k in f.readline().strip().split(self.split))
             for line in f:
                 yield {keys[idx]: v for idx, v in enumerate(eval(line))}
@@ -410,15 +411,15 @@ class CsvD(BaseFileD):
 
 
 class JsonListD(BaseFileD):
-    def __init__(self, path, extension='json'):
-        super().__init__(path, extension)
+    def __init__(self, path, extension='json', encoding='utf8'):
+        super().__init__(path, extension, encoding)
         self.path = path
         self.extension = extension
         self._file_w = {}
         self._indexes_path = {}
 
     def get_data(self, index):
-        with open(self.gen_path_by_index(index), 'r') as f:
+        with open(self.gen_path_by_index(index), 'r', encoding=self.encoding) as f:
             for line in f:
                 yield json.loads(line.strip())
 

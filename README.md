@@ -60,6 +60,8 @@ sudo python3.8 get-pip.py
 
     VIRTUAL_ENV="/home/user/PycharmProjects/D2D/venv-ubuntu-x64"
     
+（如果是windows则修改：D2D\venv-windows-x64\pyvenv.cfg的第一行为你的python3.7目录）
+
     
 3.然后回到终端窗口执行命令，如果是linux64位系统则使用venv-ubuntu-x64，windows则使用venv-windows-x64
 

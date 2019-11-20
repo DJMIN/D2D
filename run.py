@@ -1,12 +1,8 @@
 # /usr/bin/env python
 # coding: utf-8
 
-import os
-import sys
-import pymysql
-import utils.db
+import datetime
 from utils.db import ElasticSearchD, MySqlD, CsvD, JsonListD, XlsIbyFileD, XlsxIbyFileD
-import time
 from task import Migration
 
 
@@ -123,5 +119,15 @@ def test11():
     task.run()
 
 
+def test12():
+    task = Migration(
+        database_from=CsvD(path='./data'),
+        database_to=CsvD(path='./data1'),
+        data_from='user',
+        data_to=f"user_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_bak"
+    )
+    task.run()
+
+
 if __name__ == '__main__':
-    test11()
+    test12()

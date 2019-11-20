@@ -71,7 +71,7 @@ sudo python3.8 get-pip.py
     
 ## RUN 如何运行
 
-1. 配置好run.py文件里Migration类的参数（现已有11个demo函数在文件中，可以参照修改）
+1. 配置好run.py文件里Migration类的参数（现已有12个demo函数在文件中，可以参照修改）
 1. 命令行执行python run.py
 1. 观察输出日志，耐心等待程序执行完毕
 

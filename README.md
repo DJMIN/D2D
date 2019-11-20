@@ -90,7 +90,8 @@ data_to： index名或table名或文件名
 
 ## 注意事项
 
-限于mongodb数据库机制，无法高效自动去重，现在为了追求入库效率,如有重名collection会先重命名原始collection，格式为 原collection+时间+bak，再新建collection进行入库
+在入库mongodb时，限于mongodb数据库机制，无法高效自动去重，现在为了追求mongodb入库效率,
+如mongodb有重名collection会先重命名原始collection，格式为 原collection+时间+bak，再新建collection进行入库
 
 ## TODO List 
 

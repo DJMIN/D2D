@@ -41,14 +41,15 @@ class Migration(object):
                 self.run_one(table_from_raw, table_from_raw)
 
     def run_one(self, table_from, table_to):
-        data = self.database_from.get_data(table_from)
+        table = self.database_from.get_data(table_from)
         count = self.database_from.get_count(table_from)
         action = []
         time_start = time.time()
-        for idx, d in enumerate(data):
+        for idx, d in enumerate(table):
+            f_d = self.format_data(d)
+            action.append(f_d)
             if idx == 0:
-                self.database_to.create_index(index=table_to, data=d)
-            action.append(self.format_data(d))
+                self.database_to.create_index(index=table_to, data=f_d)
             if not (idx + 1) % self.windows:
                 time_use = time.time() - time_start
                 proc = (idx + 1) / count
@@ -68,5 +69,11 @@ class Migration(object):
         # action = []
 
     @staticmethod
-    def format_data(d):
-        return d
+    def format_data(data):
+        """
+        修改table行数据再迁移到新的table
+
+        :param data: dict table的行数据字典
+        :return: dict 修改后table的行数据字典
+        """
+        return data

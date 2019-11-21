@@ -84,8 +84,8 @@ sudo python3.8 get-pip.py
 
 database_from： 数据库类 如： ElasticSearchD, MySqlD, CsvD, JsonListD, XlsIbyFileD, XlsxIbyFileD等     
 database_to： 数据库类 如： ElasticSearchD, MySqlD, CsvD, JsonListD, XlsIbyFileD, XlsxIbyFileD等    
-data_from： index名或table名或文件名（如不带则会遍历所有数据库表进行迁移到指定数据库同名表）    
-data_to： index名或table名或文件名  
+table_from： index名或table名或文件名（如不带则会遍历所有数据库表进行迁移到指定数据库同名表）    
+table_to： index名或table名或文件名  
     
 
 ## 注意事项
@@ -114,7 +114,7 @@ data_to： index名或table名或文件名
 如mongodb有重名collection会先重命名原始collection，格式为 原collection+时间+bak，再新建collection进行入库
 
 * Logstash是类似的开源项目，但配置繁琐，学习曲线相对陡峭，入库效率不高。
-本项目力求用最少的代码、最简单的配置解决用户最迫切的和核心需求--数据快速转移
+本项目以极简主义为原则力求用最少的代码、最简单的配置解决用户最迫切的核心需求--数据快速转移
 ## TODO List 
 
 1. mysql auto adjust data length

@@ -10,18 +10,20 @@ import datetime
 
 
 class Migration(object):
-    def __init__(self, database_from, database_to, table_from=None, table_to=None, windows=1000):
+    def __init__(self, database_from, database_to, table_from=None, table_to=None, pks='id', pkd=None, windows=1000):
         self.database_from = database_from
         self.database_to = database_to
         self.table_from = table_from
         self.table_to = table_to
+        self.pks = pks
+        self.pkd = pkd or {}
         self.windows = windows
 
     def run(self):
         if self.table_from:
             table_to = self.table_to or self.table_from
             table_from = self.table_from
-            self.run_one(table_from, table_to)
+            self.run_one(table_from, table_to, self.pks)
         else:
             for table_from_raw in self.database_from.get_indexes():
                 # table_from = table_from_raw
@@ -38,9 +40,9 @@ class Migration(object):
                 # elif isinstance(self.database_to, utils.MySqlD):
                 #     table_to = {'index':table_from_raw}
 
-                self.run_one(table_from_raw, table_from_raw)
+                self.run_one(table_from_raw, table_from_raw, self.pkd.get(table_from_raw, 'id'))
 
-    def run_one(self, table_from, table_to):
+    def run_one(self, table_from, table_to, pks):
         table = self.database_from.get_data(table_from)
         count = self.database_from.get_count(table_from)
         action = []
@@ -49,7 +51,7 @@ class Migration(object):
             f_d = self.format_data(d)
             action.append(f_d)
             if idx == 0:
-                self.database_to.create_index(index=table_to, data=f_d)
+                self.database_to.create_index(index=table_to, data=f_d, pks=pks)
             if not (idx + 1) % self.windows:
                 time_use = time.time() - time_start
                 proc = (idx + 1) / count

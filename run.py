@@ -176,5 +176,35 @@ def test15():
     task.run()
 
 
+def test16():
+    task = Migration(
+        database_from=CsvD(path='./data', encoding='utf8'),
+        database_to=MySqlD(host='localhost', port=3306, database='test',
+                             user='debian-sys-maint', passwd='BjOtjlf6bDqypoH1'),
+        table_from='user',
+        table_to=f"user_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_bak",
+        pks='用户ID,手机号码'
+    )
+
+    def format_data(data):
+        """
+        这里可以重写“修改table行数据再迁移到新table”函数
+        :param data: dict table的行数据字典
+        :return: dict 修改后table的行数据字典
+        """
+        new_data = {}
+        for key in data.keys():
+            if key == 'userid':
+                new_data['用户ID'] = data.get('userid')
+            elif key == 'phonenumber':
+                new_data['手机号码'] = data.get('phonenumber')
+        return new_data
+
+    task.format_data = format_data
+
+    task.run()
+
+
 if __name__ == '__main__':
-    test12()  # test12是从csv到csv不需要网络配置可以直接尝试运行
+    # test12()  # test12是从csv到csv不需要网络配置可以直接尝试运行
+    test16()

@@ -7,7 +7,7 @@ import random
 from . import logger, db
 from .logger import g_log
 from .utils import run_task_auto_retry
-from .db import ElasticSearchD, MySqlD
+from .db import *
 
 
 def get_realpath():

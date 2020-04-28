@@ -584,20 +584,51 @@ class ClientPyMySQL:
         while result is not None:
             result = dbcur.fetchone()
 
-    def _execute(self, sql, values=None):
-        with self.dbcur as dbcur:
-            try:
-                if values:
-                    dbcur.execute(sql, values or [])
-                else:
-                    dbcur.execute(sql+';')
+    # def _execute1(self, sql, values=None):
+    #     print(sql)
+    #     with self.dbcur as dbcur:
+    #         try:
+    #             if values:
+    #                 dbcur.execute(sql, values or [])
+    #             else:
+    #                 dbcur.execute(sql+';')
+    #
+    #             def _fetch(_dbcur):
+    #                 result = _dbcur.fetchmany(2)
+    #                 print(result)
+    #                 while result is not None:
+    #                     for r in result:
+    #                         yield r
+    #                     result = _dbcur.fetchmany(2)
+    #             return dbcur.lastrowid, _fetch(dbcur)
+    #         except mysql_connector.DatabaseError as ex:
+    #             if ex.errno == 1205:
+    #                 logging.critical(traceback.format_exc())
+    #             else:
+    #                 raise
 
-                return dbcur.lastrowid, dbcur.fetchall()
-            except mysql_connector.DatabaseError as ex:
-                if ex.errno == 1205:
-                    logging.critical(traceback.format_exc())
-                else:
-                    raise
+    def _execute(self, sql, values=None):
+        print(sql)
+        dbcur = self.dbc.cursor()
+        try:
+            if values:
+                dbcur.execute(sql, values or [])
+            else:
+                dbcur.execute(sql)
+
+            def _fetch(_dbcur):
+                result = _dbcur.fetchmany(1000)
+                while result:
+                    # print(result)
+                    for r in result:
+                        yield r
+                    result = _dbcur.fetchmany(1000)
+            return dbcur.lastrowid, _fetch(dbcur)
+        except mysql_connector.DatabaseError as ex:
+            if ex.errno == 1205:
+                logging.critical(traceback.format_exc())
+            else:
+                raise
 
     @staticmethod
     def escape(string):

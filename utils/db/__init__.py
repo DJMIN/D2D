@@ -38,7 +38,12 @@ class ElasticSearchD(EsModel):
         return f'ElasticSearch:{self.hosts}'
 
     def get_data(self, index, *args, **kwargs):
-        for i in self.scan(query={}, index=index, *args, **kwargs):
+        if isinstance(index, str):
+            query = {}
+        else:
+            query = index[1]
+            index = index[0]
+        for i in self.scan(query=query, index=index, *args, **kwargs):
             r = {}
             if r.get('id'):
                 r['_id'] = i['_id']
@@ -68,6 +73,8 @@ class ElasticSearchD(EsModel):
         return list(self.es.indices.get_alias().keys())
 
     def get_count(self, index):
+        if not isinstance(index, str):
+            index = index[0]
         return int(self.es.count(index=index, body={})['count'])
 
     @staticmethod
@@ -240,7 +247,10 @@ class MySqlD(ClientPyMySQL, ABC):
         return f'MySQL:{self.host}:{self.port}/{self.database}'
 
     def get_data(self, index, *args, **kwargs):
-        return self._execute(sql=f'select * from {index}', *args, **kwargs)[1]
+        if index.lower().strip().startswith('select '):
+            return self._execute(sql=f'{index}', *args, **kwargs)[1]
+        else:
+            return self._execute(sql=f'select * from {index}', *args, **kwargs)[1]
 
     def save_data(self, index, *args, **kwargs):
         self.insert_many_with_dict_list(tablename=index, *args, **kwargs)
@@ -249,7 +259,11 @@ class MySqlD(ClientPyMySQL, ABC):
         return list(t['Tables_in_test'] for t in self._execute(sql='show tables;')[1])
 
     def get_count(self, index):
-        return self._execute(f'select count(0) as c from  {index}', )[1][0]['c']
+        if index.lower().strip().startswith('select '):
+            index = f'({index.lower().strip()})'
+        for r in self._execute(f'select count(0) as c from  {index} as taSDFEWVempTABlesdfecH', )[1]:
+            return r['c']
+
 
     @staticmethod
     def get_int_type_from_len(length):
@@ -461,9 +475,13 @@ class XlsIbyFileD(BaseFileD):
             logging.info(f'sheet:{idx}:{name}')
             worksheet = workbook.sheet_by_index(idx)
             nrows = worksheet.nrows
-            keys = {i: key.lower() for i, key in enumerate(worksheet.row_values(0))}
+            if not nrows:
+                continue
+            keys = {i: key for i, key in enumerate(worksheet.row_values(0))}
             for line_num in range(1, nrows):
                 line = worksheet.row_values(line_num)
+                # shengri = worksheet.row(line_num)[3].ctype
+                # print(shengri)
                 data = {keys[i]: key for i, key in enumerate(line)}
                 yield data
 

@@ -4,7 +4,8 @@ import datetime
 import utils
 
 c = utils.MySqlD(host='localhost', port=3306, database='gu',
-                 user='root', passwd='root')
+                 # user='root', passwd='root')
+                 user='debian-sys-maint', passwd='BjOtjlf6bDqypoH1')
 for root, fs, fns in os.walk('./data'):
     for idx, fn in enumerate(fns):
         print(idx, fn)
@@ -36,4 +37,4 @@ for root, fs, fns in os.walk('./data'):
         #     c.create_index('gu_test', res[0], pks='code,time_date_str')
         # except:
         #     pass
-        c.save_data('gu_test', data=res)
+        c.save_data('gu1', data=res)

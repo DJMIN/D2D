@@ -678,7 +678,11 @@ class ClientPyMySQL:
             dbcur = self._execute(sql)
         return dbcur.lastrowid
 
-    def insert_many_with_dict_list(self, tablename, data, mode='INSERT IGNORE', batch_size=5000):
+    def insert_many_with_dict_list(
+            self, tablename, data,
+            mode='INSERT IGNORE',
+            # mode='REPLACE',
+            batch_size=5000):
         if not data:
 
             return

@@ -14,6 +14,7 @@ import json
 import logging
 import pymongo
 import datetime
+import copy
 import pymongo.errors
 # import bson.objectid
 from abc import ABC
@@ -43,6 +44,7 @@ class ElasticSearchD(EsModel):
         else:
             query = index[1]
             index = index[0]
+        print(json.dumps(query))
         for i in self.scan(query=query, index=index, *args, **kwargs):
             r = {}
             if r.get('id'):
@@ -73,9 +75,14 @@ class ElasticSearchD(EsModel):
         return list(self.es.indices.get_alias().keys())
 
     def get_count(self, index):
-        if not isinstance(index, str):
+        if isinstance(index, str):
+            query = {}
+        else:
+            query = copy.deepcopy(index[1])
             index = index[0]
-        return int(self.es.count(index=index, body={})['count'])
+            if query.get("_source"):
+                query.pop("_source")
+        return int(self.es.count(index=index, body=query)['count'])
 
     @staticmethod
     def get_int_type_from_len(length):
@@ -424,7 +431,7 @@ class CsvD(BaseFileD):
 
     def create_index(self, index, data, pks='id'):
         super(self.__class__, self).create_index(index, data)
-        self._file_w[index].write((','.join(v.__str__() for v in data.keys()) + '\n'))
+        self._file_w[index].write((','.join(f'"{v.__str__()}"' for v in data.keys()) + '\n'))
 
 
 class JsonListD(BaseFileD):
@@ -487,6 +494,8 @@ class XlsIbyFileD(BaseFileD):
 
     def save_data(self, index, data, *args, **kwargs):
         for d in data:
+            if not d:
+                continue
             row = [str(d.get(key, '')) for key in self._file_w_now_keys[index]]
             self.write_row(self._file_w_now_sheet[index], row)
             self._file_w_now_sheet_line_num[index] += 1
@@ -535,6 +544,8 @@ class XlsIbyFileD(BaseFileD):
                     start_time = time.time()
                     f.save(self._indexes_path[idx])
                     logging.info('[use {:.2f}s] write excel fin: {}'.format(time.time()-start_time, self._indexes_path[idx]))
+                    break
+                except ImportError as e:
                     break
                 except Exception as e:
                     logging.error(e)

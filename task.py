@@ -56,25 +56,31 @@ class Migration(object):
                 #     table_to = {'index':table_from_raw}
 
                 self.run_one(table_from_raw, table_from_raw, self.pkd.get(table_from_raw, 'id'))
+        del self.database_from
+        del self.database_to
 
     def run_one(self, table_from, table_to, pks):
         count = self.count_from or self.database_from.get_count(table_from)
         table = self.database_from.get_data(table_from)
         action = []
         time_start = time.time()
+        first = False
         for idx, d in enumerate(table):
             try:
                 f_d = self.format_data(d)
+                if not f_d:
+                    continue
                 if self.quchong:
-                    if json.dumps(f_d) in self.all_new_data_json_string:
+                    if str(f_d) in self.all_new_data_json_string:
                         continue
                     else:
-                        self.all_new_data_json_string.add(json.dumps(f_d))
+                        self.all_new_data_json_string.add(str(f_d))
             except Exception as e:
                 logging.info(f'{self.database_from}/{table_from}:{idx} {e}')
                 raise e
             action.append(f_d)
-            if idx == 0:
+            if not first:
+                first = True
                 self.database_to.create_index(index=table_to, data=f_d, pks=pks)
             if (idx < 5) or (not idx % 1000):
                 # for k1,  k2, in zip(d.items(), f_d.items()):

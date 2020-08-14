@@ -78,7 +78,13 @@ def run_task_auto_retry(
                 # f' {args} {kwargs}'+
                 ''
             )
-            return func(*args, **kwargs)
+            res = func(*args, **kwargs)
+            g_log.info(
+                f'[SUC:{retry:04d}:{time.time() - time_start:.2f}s] {func_info}' +
+                # f' {args} {kwargs}'+
+                ''
+            )
+            return res
         except tuple(warning_d.keys()) as ex:
             error = ex
             ex_msg = warning_d[ex.__class__]

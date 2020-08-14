@@ -4,9 +4,10 @@ import datetime
 import utils
 
 c = utils.MySqlD(host='localhost', port=3306, database='gu',
-                 user='root', passwd='root')
+                 # user='root', passwd='root')
+                 user='debian-sys-maint', passwd='BjOtjlf6bDqypoH1')
 
-hs300 = pandas.read_csv('./data/gu_大盘_sh.000300_上证综指_data.csv', encoding='gbk')
+hs300 = pandas.read_csv('./data1/gu_大盘_sh.000300_上证综指_data.csv', encoding='gbk')
 
 
 # 计算 HPR 函数
@@ -49,10 +50,20 @@ def hpr(endPrice, periodPrice):
 #             # print('超额收益率', jl_yearly - hpr_yearly)
 #             all_c += (jl_yearly - hpr_yearly)
 #         last_jlr = jlr
+dbn = 'gu'
 
+time_max = datetime.datetime.fromisoformat('1990-01-01')
+for i in utils.MySqlD(host='localhost', port=3306, database='gu',
+                      # user='root', passwd='root')
+                      user='debian-sys-maint', passwd='BjOtjlf6bDqypoH1').get_data(
+    'select * from gu order by time_date_int desc limit 1'):
+    # time_max = datetime.datetime.fromisoformat(i['time_date_str'])-datetime.timedelta(days=3)
+    time_max = datetime.datetime.fromisoformat(i['time_date_str'])
 
+print(time_max.isoformat())
+res = []
 
-for root, fs, fns in os.walk('./data'):
+for root, fs, fns in os.walk('./data1'):
     for idx, fn in enumerate(fns):
         print(idx, fn)
         if not fn.endswith('.csv'):
@@ -63,19 +74,24 @@ for root, fs, fns in os.walk('./data'):
         #     print(f.readline())
         data = pandas.read_csv(f'{root}{os.sep}{fn}', encoding='gbk')
         keys = list(data.keys())
-        res = []
         ar_d = {}
         for idx, line in enumerate(data.values.tolist()):
             _, industry, code_r, code_name, _ = fn.split('_')
             code_prefix, code = code_r.split('.')
             d = {k:v for k,v in zip(keys, line)}
             date = datetime.datetime.fromisoformat(line[0])
+            # print(date, time_max, date <= time_max)
             dapan_ar = hs300[hs300["交易所行情日期"] == line[0]]
             if len(dapan_ar):
                 ar = float(line[12]) - float(dapan_ar['涨跌'])
                 ar_d[line[0]] = ar
             else:
                 ar = 0
+
+            # 跳过老数据入库
+            if date <= time_max:
+                continue
+                # pass
 
             d.update({
                 'code': code,
@@ -99,5 +115,14 @@ for root, fs, fns in os.walk('./data'):
         # try:
         #     c.create_index('gu_test', res[0], pks='code,time_date_str')
         # except:
+        # if len(res) > 1000:
+        c.save_data(dbn, data=res)
+        print(len(res))
+        res = []
         #     pass
-        c.save_data('gu_test', data=res)
+#             c.save_data(dbn, data=res)
+#             # c.save_data('gu1', data=res)
+#             res = []
+#
+if res:
+    c.save_data(dbn, data=res)

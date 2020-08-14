@@ -2,6 +2,8 @@ from utils import MySqlD
 from utils import CsvD
 import baostock as bs
 import pandas as pd
+import utils
+
 import datetime
 
 #### 登陆系统 ####
@@ -31,28 +33,37 @@ fanyi = {
 
 def get_k(piao, date):
     print(date,
-          (datetime.datetime.fromisoformat(date) + datetime.timedelta(days=31 * 12 * 21)).isoformat().split('T')[0])
-    rs = bs.query_history_k_data_plus(piao,
-                                      ','.join(fanyi.keys()),
-                                      start_date=date, end_date=(
-                    datetime.datetime.fromisoformat(date) + datetime.timedelta(days=31 * 12 * 21)).isoformat().split(
-            'T')[0],
-                                      frequency="d", adjustflag="3")
+          # (datetime.datetime.fromisoformat(date) + datetime.timedelta(days=31 * 12 * 21)).isoformat().split('T')[0])
+          (datetime.datetime.today().isoformat().split('T')[0]))
+    rs = bs.query_history_k_data_plus(
+        piao,
+        ','.join(fanyi.keys()),
+        start_date=date, end_date=(
+            datetime.datetime.today().isoformat().split('T')[0]),
+        # datetime.datetime.fromisoformat(date) + datetime.timedelta(days=31 * 12 * 21)).isoformat().split('T')[0],
+        frequency="d", adjustflag="3")
     return rs
 
 
-def get_all_k():
+def get_all_k():cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
     #### 打印结果集 ####
+    time_max = None
+    for i in utils.MySqlD(host='localhost', port=3306, database='gu',
+                          # user='root', passwd='root')
+                          user='debian-sys-maint', passwd='BjOtjlf6bDqypoH1').get_data(
+        'select * from gu order by time_date_int desc limit 1'):
+        time_max = (datetime.datetime.fromisoformat(i['time_date_str']) - datetime.timedelta(days=21)).isoformat().split('T')[0]
 
-    for idx,( piao, name, industry) in enumerate(
-            ['sh.000300', '上证综指', '大盘']+
-            [( p[1], p[2], p[3] ) for p in pd.read_csv(open(
-            './stock_industry.csv', 'r', encoding="gbk")).values.tolist()]
+    for idx, (piao, name, industry) in enumerate(
+            [('sh.000300', '上证综指', '大盘')] +
+            [(p[1], p[2], p[3]) for p in pd.read_csv(open(
+                './stock_industry.csv', 'r', encoding="gbk")).values.tolist()]
     ):
         print(idx)
         result_list = []
         for date in [
-            '2000-01-01'
+            # '2000-01-01'
+            time_max
         ]:
             # piao='sh.000300'
             # piao = 'sz.300032'
@@ -65,8 +76,9 @@ def get_all_k():
         result = pd.DataFrame(result_list, columns=rs.fields)
         result.rename(columns=fanyi, inplace=True)
         #### 结果集输出到csv文件 ####
-        result.to_csv(f"./data/gu_{industry}_{piao}_{name}_data.csv".replace("*",""), encoding="gbk", index=False)
+        result.to_csv(f"./data1/gu_{industry}_{piao}_{name}_data.csv".replace("*", ""), encoding="gbk", index=False)
         print(piao)
+
 
 get_all_k()
 #### 登出系统 ####

@@ -1,0 +1,105 @@
+# gevent
+DBUtils==1.3
+# mysql
+redis>=3.2.1
+# mysqlclient
+pymysql
+pysocks
+PyMySQL
+click
+tornado
+python-dateutil
+six
+urllib3
+phone
+wrapt
+watchdog
+gunicorn
+chardet
+flask
+flask_sqlalchemy
+pandas
+mongoengine
+# flask_mongoengine install error need 3 pkg
+rednose
+nose
+coverage
+pytest
+flask_mongoengine
+Flask-Migrate
+requests>=2.22.0
+# requests==2.2.1
+itsdangerous
+elasticsearch>=6.1.1
+elasticsearch_dsl>=6.1
+demjson
+dnspython
+tushare
+baostock
+xlrd
+xlsxwriter
+numpy
+bs4
+openpyxl
+# blob utf8 decode error
+# mysql-connector>=2.1.7
+mysql-connector-python>=8.0.6
+pymongo
+# pymongo==3.2  # pymongo.errors.ConfigurationError: Server at 127.0.0.1:27017 reports wire version 0, but this version of PyMongo requires at least 2 (MongoDB 2.6).
+pyquery
+# pycrypto
+pycryptodome
+
+requests[socks]
+PySocks
+cryptg
+psycopg2-binary
+# supervisor
+psutil
+Flask
+Flask_Script
+Flask_Cache
+Flask_Migrate
+Flask_login
+Flask_SQLAlchemy
+lxml
+requests
+SQLAlchemy
+Flask_Cors
+Werkzeug
+celery
+gevent
+greenlet
+pathlib2
+rarfile
+zipp
+# DBUtils==1.3 No module named 'DBUtils'
+redis
+PyMySQL==0.9.3
+arrow
+# requests
+elasticsearch
+elasticsearch_dsl
+# mysql-connector
+mysql-connector-python
+# pymongo
+bcrypt
+telethon==1.11.3
+flask_socketio
+eventlet
+python-logstash
+python-logstash-async
+msgpack
+kafka-python
+logstash_formatter
+func_timeout
+async-timeout
+concurrent-log-handler
+simplejson
+# sasl
+thrift
+# thrift-sasl
+PyHive
+setuptools
+twine
+docker

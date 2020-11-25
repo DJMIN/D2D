@@ -1,3 +1,4 @@
+# d2d
 # D2D
 Database To Database, The fastest migration tool for all database by scheduled tasks with
 2 lines of code.    
@@ -74,11 +75,84 @@ sudo python3.8 get-pip.py
 
     python run.py
     
-## RUN 如何运行
+## RUN 如何使用
 
-1. 配置好run.py文件里Migration类的参数（现已有15个demo函数在文件中，可以参照修改）
-1. 命令行执行python run.py
-1. 观察输出日志，耐心等待程序执行完毕
+1. need python3
+1. create your .py file 
+```python
+import d2d
+from d2d import (
+ElasticSearchD, MySqlD, CsvD, JsonListD,
+ XlsIbyFileD, XlsxIbyFileD, MongoDBD,
+ Migration, Migration2DB
+)
+
+def test1():
+    t = Migration(
+        database_from=MySqlD(host='localhost', port=3306, database='test',
+                                user='root', passwd='root'),
+        database_to=MySqlD(host='192.168.0.100', port=3306, database='test',
+                                user='root', passwd='root'),
+        table_from='user',
+        table_to='user'
+    )
+    t.run()
+
+def test2():
+    t = Migration2DB(
+        database_from1=XlsxIbyFileD(path='./data'),
+        database_from2=XlsxIbyFileD(path='./data'),
+        table_from1=f'''userinfo''',
+        table_from2=f'''user''',
+        migration_key1=f'''user_id''',
+        migration_key2=f'''userid''',
+        database_to=XlsxIbyFileD(path='./data'),
+        table_to='user_info_new',
+        # size=10000,
+    )
+    t.run()
+
+
+def test3():
+    t = Migration(
+        database_from=MySqlD(host='localhost', port=3306, database='test',
+                                   user='root', passwd='root'),
+        database_to=ElasticSearchD(hosts='127.0.0.1:9200'),
+        table_from='user1',
+        table_to='user1'
+    )
+    t.run()
+
+
+def test4():
+    t = Migration(
+        database_from=MySqlD(host='localhost', port=3306, database='test',
+                             user='root', passwd='root'),
+        database_to=CsvD(path='./data'),
+        table_from='user1',
+        table_to='user1'
+    )
+    t.run()
+
+
+def test5():
+    t = Migration(
+        database_from=CsvD(path='./data'),
+        database_to=CsvD(path='./data1'),
+        table_from='user1',
+        table_to='user2'
+    )
+    t.run()
+
+
+if __name__ == '__main__':
+    test5()
+
+```
+
+1. 命令行执行python .py
+1. 观察数据迁移时输出的日志，耐心等待程序执行完毕
+
 
 ###### Migration类的参数定义
 

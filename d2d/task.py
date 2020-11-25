@@ -4,11 +4,10 @@
 import os
 import sys
 import json
-import utils
 import time
 import datetime
 import logging
-
+from . import utils
 
 def format_value(data):
     if isinstance(data, float) and data % 1 == 0.0:
@@ -21,7 +20,7 @@ def format_value(data):
 class Migration(object):
     def __init__(
             self, database_from, database_to, table_from=None, table_to=None,
-            pks='id', pkd=None, windows=1000, count_from=None, size=None, quchong=False):
+            pks='', pkd=None, windows=10000, count_from=None, size=None, quchong=None, save_data_kwargs=None):
         self.database_from = database_from
         self.database_to = database_to
         self.table_from = table_from
@@ -31,7 +30,8 @@ class Migration(object):
         self.pks = pks
         self.pkd = pkd or {}
         self.windows = windows
-        self.quchong = quchong
+        self.quchong = quchong or {}
+        self.save_data_kwargs = save_data_kwargs or []
         self.all_new_data_json_string = set({})
 
     def run(self):
@@ -82,7 +82,7 @@ class Migration(object):
             if not first:
                 first = True
                 self.database_to.create_index(index=table_to, data=f_d, pks=pks)
-            if (idx < 5) or (not idx % 1000):
+            if (idx < 3) or (not idx % self.windows):
                 # for k1,  k2, in zip(d.items(), f_d.items()):
                 #     utils.g_log.info('{} -> {} | {}==>{}'.format(
                 #
@@ -103,10 +103,14 @@ class Migration(object):
                     self.database_from, table_from,
                     self.database_to, table_to,
                     ))
-                utils.run_task_auto_retry(self.database_to.save_data, kwargs={"data": action, 'index': table_to})
+                kws = {"data": action, 'index': table_to}
+                kws.update(self.save_data_kwargs)
+                utils.run_task_auto_retry(self.database_to.save_data, kwargs=kws)
                 action = []
         if len(action):
-            utils.run_task_auto_retry(self.database_to.save_data, kwargs={"data": action, 'index': table_to})
+            kws = {"data": action, 'index': table_to}
+            kws.update(self.save_data_kwargs)
+            utils.run_task_auto_retry(self.database_to.save_data, kwargs=kws)
         # action = []
 
     @staticmethod
@@ -173,7 +177,7 @@ class Migration2DB(object):
         time_start = time.time()
         table2d = {}
         for idx, d in enumerate(self.database_from2.get_data(self.table_from2)):
-            if (idx < 5) or (not idx % 1000):
+            if (idx < 5) or (not idx % self.windows):
                 utils.g_log.info('{}\n|{}'.format(f'{idx:080d}', d))
                 time_use = time.time() - time_start
                 proc = (idx + 1) / count2
@@ -208,7 +212,7 @@ class Migration2DB(object):
                     for k, v in table2d[list(table2d.keys())[0]].items():
                         temp_d[k] = v
                 self.database_to.create_index(index=table_to, data=temp_d, pks=pks)
-            if (idx < 5) or (not idx % 1000):
+            if (idx < 5) or (not idx % self.windows):
                 # for k1,  k2, in zip(d.items(), f_d.items()):
                 #     utils.g_log.info('{} -> {} | {}==>{}'.format(
                 #

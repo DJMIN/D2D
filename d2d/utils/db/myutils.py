@@ -266,19 +266,21 @@ class EsModel(object):
                     yield hit
 
                 # check if we have any errors
-                if (resp["_shards"]["successful"] + resp["_shards"]["skipped"]) < resp["_shards"]["total"]:
-                    logging.warning(
-                        "Scroll request has only succeeded on %d (+%d skipped) shards out of %d.",
-                        resp["_shards"]["successful"],
-                        resp["_shards"]["skipped"],
-                        resp["_shards"]["total"],
-                    )
-                    if raise_on_error:
-                        raise Exception(
-                            scroll_id,
-                            "Scroll request has only succeeded on %d (+%d skiped) shards out of %d."
-                            % (resp["_shards"]["successful"], resp["_shards"]["skipped"], resp["_shards"]["total"]),
-                        )
+
+                # if (resp["_shards"]["successful"] + resp["_shards"]["skipped"]) < resp["_shards"]["total"]:
+                #     logging.warning(
+                #         "Scroll request has only succeeded on %d (+%d skipped) shards out of %d.",
+                #         resp["_shards"]["successful"],
+                #         resp["_shards"]["skipped"],
+                #         resp["_shards"]["total"],
+                #     )
+                #     if raise_on_error:
+                #         raise Exception(
+                #             scroll_id,
+                #             "Scroll request has only succeeded on %d (+%d skiped) shards out of %d."
+                #             % (resp["_shards"]["successful"], resp["_shards"]["skipped"], resp["_shards"]["total"]),
+                #         )
+
                 resp = self.es.scroll(
                     body={"scroll_id": scroll_id, "scroll": scroll}, **scroll_kwargs
                 )
@@ -680,8 +682,8 @@ class ClientPyMySQL:
 
     def insert_many_with_dict_list(
             self, tablename, data,
-            mode='INSERT IGNORE',
-            # mode='REPLACE',
+            # mode='INSERT IGNORE',
+            mode='REPLACE',
             batch_size=5000):
         if not data:
 

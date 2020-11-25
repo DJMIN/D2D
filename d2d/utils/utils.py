@@ -1,7 +1,9 @@
 import time
+import logging
 from json import JSONEncoder, dumps
 from base64 import b64encode
-from .logger import g_log
+
+logger = logging.getLogger('d2d.task')
 
 
 class JSONEncoderWithBytes(JSONEncoder):
@@ -73,13 +75,13 @@ def run_task_auto_retry(
     while True:
         retry += 1
         try:
-            g_log.debug(
+            logger.debug(
                 f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info}' +
                 # f' {args} {kwargs}'+
                 ''
             )
             res = func(*args, **kwargs)
-            g_log.info(
+            logger.info(
                 f'[SUC:{retry:04d}:{time.time() - time_start:.2f}s] {func_info}' +
                 # f' {args} {kwargs}'+
                 ''
@@ -89,17 +91,17 @@ def run_task_auto_retry(
             error = ex
             ex_msg = warning_d[ex.__class__]
             if ex_msg is not None:
-                g_log.warning(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
+                logger.warning(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
         except tuple(error_d.keys()) as ex:
             error = ex
             ex_msg = warning_d[ex.__class__]
             if ex_msg is not None:
-                g_log.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
+                logger.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
             if ex.__class__ in raise_e:
                 raise ex
         except tuple({Exception: ""}.keys()) as ex:
             error = ex
-            g_log.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s]  {func_info}', ex)
+            logger.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s]  {func_info}', ex)
             if ex.__class__ in raise_e:
                 raise ex
         if (

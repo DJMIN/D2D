@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # coding: utf-8
-
-
+import csv
 import os
 import random
 import re
@@ -19,6 +18,7 @@ import pymongo.errors
 # import bson.objectid
 from abc import ABC
 from pathlib import Path
+from werkzeug import utils as wutils
 from .myutils import EsModel
 from .myutils import BaseDB
 from .myutils import ClientPyMySQL
@@ -27,6 +27,41 @@ from .myutils import ExcelWriter
 
 def get_realpath():
     return os.path.split(os.path.realpath(__file__))[0]
+
+
+def secure_filename(filename):
+    if isinstance(filename, wutils.text_type):
+        from unicodedata import normalize
+        filename = normalize('NFKD', filename).encode('utf-8', 'ignore')  # 转码
+        if not wutils.PY2:
+            filename = filename.decode('utf-8')  # 解码
+    for sep in os.path.sep, os.path.altsep:
+        if sep:
+            filename = filename.replace(sep, ' ')
+
+    # 正则增加对汉字和日语假名的部分（本人有需求）
+    # \ / : * ? " < > |    r"[\/\\\:\*\?\"\<\>\|]"
+    # [ \\[ \\] \\^ \\-_*×――(^)$%~!@#$…&%￥—+=<>《》!！??？:：•`·、。，；,.;\"‘’“”-]
+    # \u4E00-\u9FBF 中文
+    # \u3040-\u30FF 假名
+    # \u31F0-\u31FF 片假名扩展
+    # _filename_ascii_add_strip_re = re.compile(r'[^A-Za-z0-9_\u4E00-\u9FBF\u3040-\u30FF\u31F0-\u31FF.-]')
+    _filename_ascii_add_strip_re = re.compile(r"[\/\\\:\*\?\"\<\>\|/\-]")
+
+    filename = str(_filename_ascii_add_strip_re.sub('', '_'.join(  # 新的正则
+        filename.split()))).strip('._')
+
+    _windows_device_files = ('CON', 'AUX', 'COM1', 'COM2', 'COM3', 'COM4', 'LPT1',
+                             'LPT2', 'LPT3', 'PRN', 'NUL')
+
+    # on nt a couple of special files are present in each folder.  We
+    # have to ensure that the target file is not such a filename.  In
+    # this case we prepend an underline
+    if os.name == 'nt' and filename and \
+            filename.split('.')[0].upper() in _windows_device_files:
+        filename = '_' + filename
+
+    return filename[:250]
 
 
 class ElasticSearchD(EsModel):
@@ -44,7 +79,7 @@ class ElasticSearchD(EsModel):
         else:
             query = index[1]
             index = index[0]
-        print(json.dumps(query))
+        logging.debug(json.dumps(query))
         for i in self.scan(query=query, index=index, *args, **kwargs):
             r = {}
             if r.get('id'):
@@ -271,7 +306,6 @@ class MySqlD(ClientPyMySQL, ABC):
         for r in self._execute(f'select count(0) as c from  {index} as taSDFEWVempTABlesdfecH', )[1]:
             return r['c']
 
-
     @staticmethod
     def get_int_type_from_len(length):
         if 0 < length <= 8:
@@ -353,12 +387,12 @@ def get_line_num_fast(filename):
 
 
 class BaseFileD(object):
-    def __init__(self, path, extension, encoding='utf8'):
+    def __init__(self, path, extension, encoding='utf8-sig'):
         self.path = path
         self.extension = extension
         self.encoding = encoding
-        self._file_w = {}
-        self._indexes_path = {}
+        self._file_w = dict()
+        self._indexes_path = dict()
 
     def __repr__(self):
         return f'{self.extension}:{self.path}'
@@ -372,7 +406,7 @@ class BaseFileD(object):
 
     def gen_path_by_index(self, index):
         if index not in self._indexes_path:
-            path = f'{self.path}{os.sep}{os.sep.join(index.split("-"))}.{self.extension}'
+            path = f'{self.path}{os.sep}{secure_filename(index)}.{self.extension}'
             self._indexes_path[index] = path
         return self._indexes_path[index]
 
@@ -386,7 +420,7 @@ class BaseFileD(object):
                 (filename, extension) = os.path.splitext(tempfilename)
                 if extension not in [f'.{self.extension}']:
                     continue
-                index = '-'.join(list(filepath.replace(real_path, '', 1).split(os.sep)) + [filename.decode()])
+                index = '-'.join(list(filepath.replace(real_path, '', 1).split(os.sep)) + [filename])
                 res.append(index)
                 self._indexes_path[index] = path
         return res
@@ -408,17 +442,29 @@ class BaseFileD(object):
         path = self.gen_path_by_index(index)
         if os.path.exists(path):
             os.rename(path, f"{path}.{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.bak")
+        dirname = os.path.dirname(path)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
         self._file_w.setdefault(index, self.w_open_func(path, 'w', encoding=self.encoding))
 
 
 class CsvD(BaseFileD):
     def __init__(self, path, split=',', extension='csv', encoding='utf8'):
         super().__init__(path, extension, encoding)
-        self.path = path
         self.split = split
-        self.extension = extension
-        self._file_w = {}
-        self._indexes_path = {}
+        self._file_w = dict()
+        self.___file_w = dict()
+
+    @property
+    def __file_w(self):
+        for k, v in self._file_w.items():
+            if k not in self.___file_w:
+                self.___file_w[k] = csv.writer(v)
+        return self.___file_w
+
+    # @classmethod
+    # def w_open_func(cls, *args, **kwargs):
+    #     return csv.writer(open(*args, **kwargs))
 
     def get_data(self, index):
         with open(self.gen_path_by_index(index), 'r', encoding=self.encoding) as f:
@@ -427,20 +473,20 @@ class CsvD(BaseFileD):
                 yield {keys[idx]: v for idx, v in enumerate(eval(line))}
 
     def save_data(self, index, data, *args, **kwargs):
-        self._file_w[index].writelines((','.join(v.__repr__() for v in d.values()) + '\n') for d in data)
+        # self._file_w[index].writelines((self.split.join(f'{v.__repr__()}' for v in d.values()) + '\n') for d in data)
+        self.__file_w[index].writerows([v for v in d.values()] for d in data)
+        self._file_w[index].flush()
 
     def create_index(self, index, data, pks='id'):
         super(self.__class__, self).create_index(index, data)
-        self._file_w[index].write((','.join(f'"{v.__str__()}"' for v in data.keys()) + '\n'))
+        # self._file_w[index].writerow((self.split.join(f'"{v.__repr__()[1:-1]}"' for v in data.keys()) + '\n'))
+        self.__file_w[index].writerow([v for v in data.keys()])
+        self._file_w[index].flush()
 
 
 class JsonListD(BaseFileD):
     def __init__(self, path, extension='json', encoding='utf8'):
         super().__init__(path, extension, encoding)
-        self.path = path
-        self.extension = extension
-        self._file_w = {}
-        self._indexes_path = {}
 
     def get_data(self, index):
         with open(self.gen_path_by_index(index), 'r', encoding=self.encoding) as f:
@@ -449,6 +495,7 @@ class JsonListD(BaseFileD):
 
     def save_data(self, index, data, *args, **kwargs):
         self._file_w[index].writelines((json.dumps(d) + '\n') for d in data)
+        self._file_w[index].flush()
 
 
 class XlsIbyFileD(BaseFileD):
@@ -543,7 +590,8 @@ class XlsIbyFileD(BaseFileD):
                 try:
                     start_time = time.time()
                     f.save(self._indexes_path[idx])
-                    logging.info('[use {:.2f}s] write excel fin: {}'.format(time.time()-start_time, self._indexes_path[idx]))
+                    logging.info(
+                        '[use {:.2f}s] write excel fin: {}'.format(time.time() - start_time, self._indexes_path[idx]))
                     break
                 except ImportError as e:
                     break
@@ -596,5 +644,3 @@ class MongoDBD(object):
         except pymongo.errors.OperationFailure as e:
             if e.__str__() != 'source namespace does not exist':
                 raise
-
-

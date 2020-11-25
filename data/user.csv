@@ -1,4 +1,4 @@
 userid,phonenumber,registeredflag,phoneloctioncountry,phoneloctionprovince,phoneloctioncity,username,firstname,lastname,timecreate,timeupdate,timelastlogin,accesshash,datasources,datasourcesflag,datamd5,id
-100111111,'+8613071000000',1,'中国','浙江','杭州','','','',1560288376,1560288376,0,'-123','once session',1,'843d61d538eb87beb6ff4dea8e7023f2','100111111'
+100111111,'+8613071000000',1,'中国','浙\n/n江','杭州','','','',1560288376,1560288376,0,'-123','once session',1,'843d61d538eb87beb6ff4dea8e7023f2','100111111'
 100222222,'+8613158000000',1,'中国','四川','绵阳','','','',1558513361,1558513361,1554789228,'321','once session',1,'50c3e6fec95d636e058484fc0212b4cc','100222222'
 100333333,'+8618611000000',1,'中国','北京','北京','','','',1558516685,1558516685,0,'0','once session',1,'2c75285e791814a7370c0a205c9732aa','100333333'

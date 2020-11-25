@@ -13,7 +13,8 @@ Has detailed logging
 
 
 ## Install 如何安装
-
+* 以下说明完全只针对安装源码调试的用户， 
+普通用户sudo pip install d22d 已可使用，可跳过本节安装说明直至["RUN 如何使用"](#trun)
 #### 如果是互联网用户
 
 ##### 安装python3.7以上如有可跳过
@@ -75,13 +76,13 @@ sudo python3.8 get-pip.py
 
     python run.py
     
-## RUN 如何使用
+##  <a name="trun">RUN 如何使用</a>
 
 1. need python3
 1. create your .py file 
 ```python
-import d2d
-from d2d import (
+import d22d
+from d22d import (
 ElasticSearchD, MySqlD, CsvD, JsonListD,
  XlsIbyFileD, XlsxIbyFileD, MongoDBD,
  Migration, Migration2DB
@@ -143,6 +144,32 @@ def test5():
         table_to='user2'
     )
     t.run()
+
+
+def test6():
+    """
+    独立使用 CsvD 样例
+    Using CsvD independently
+
+    """
+    data = CsvD(path='./data').get_data('user')
+    file = CsvD(path='./data1')
+    first_line = True
+    windows = 100
+    size = 10
+    save_list = []
+    for idx, line_dict in enumerate(data):
+        if size and size == idx:
+            break
+        if first_line:
+            file.create_index('user1', line_dict, pks='')
+            first_line = False
+        save_list.append(line_dict)
+        if not idx % windows:
+            file.save_data('user1', save_list)
+            save_list = []
+    if save_list:
+        file.save_data('user1', save_list)
 
 
 if __name__ == '__main__':

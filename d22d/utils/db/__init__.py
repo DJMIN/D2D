@@ -455,6 +455,12 @@ class CsvD(BaseFileD):
         self._file_w = dict()
         self.___file_w = dict()
 
+    def get_count(self, index):
+        count = get_line_num_fast(self.gen_path_by_index(index))
+        if count:
+            count -= 1
+        return count
+
     @property
     def __file_w(self):
         for k, v in self._file_w.items():

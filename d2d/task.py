@@ -91,7 +91,8 @@ class Migration(object):
                 #     logger.info('{} -> {} | {}==>{}'.format(
                 #
                 #     ))
-                logger.info('{}\n|{}\n|\n|{}\n|{}\n'.format(f'{idx:080d}', d, f_d, f'{idx:0163d}'))
+                # logger.info('{}\n|{}\n|\n|{}\n|{}\n'.format(f'{idx:-80}', d, f_d, f'{idx:-163}'))
+                logger.info('[{}]| {}   -->   {}'.format(f'{idx:010}', d, f_d))
 
             if (self.size is not None) and (self.size < idx):
                 break
@@ -182,7 +183,8 @@ class Migration2DB(object):
         table2d = {}
         for idx, d in enumerate(self.database_from2.get_data(self.table_from2)):
             if (idx < 5) or (not idx % self.windows):
-                logger.info('{}\n|{}'.format(f'{idx:080d}', d))
+                # logger.info('{}\n|{}'.format(f'{idx:080d}', d))
+                logger.info('[{}]| {}'.format(f'{idx:010}', d))
                 time_use = time.time() - time_start
                 proc = (idx + 1) / count2
 
@@ -221,8 +223,8 @@ class Migration2DB(object):
                 #     logger.info('{} -> {} | {}==>{}'.format(
                 #
                 #     ))
-                logger.info('{}\n|{}\n|\n|{}\n|{}\n'.format(f'{idx:080d}', d, f_d, f'{idx:0163d}'))
-
+                # logger.info('{}\n|{}\n|\n|{}\n|{}\n'.format(f'{idx:080d}', d, f_d, f'{idx:0163d}'))
+                logger.info('[{}]| {}   -->   {}'.format(f'{idx:010}', d, f_d))
             if (self.size is not None) and (self.size < idx):
                 break
             if len(action) > self.windows:

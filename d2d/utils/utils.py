@@ -139,7 +139,7 @@ def task_auto_retry(
         while True:
             retry += 1
             try:
-                logging.debug(
+                logger.debug(
                     f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info}' + ''
                     # f' {args} {kwargs}'
                 )
@@ -148,17 +148,17 @@ def task_auto_retry(
                 error = ex
                 ex_msg = warning_d[ex.__class__]
                 if ex_msg is not None:
-                    logging.warning(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
+                    logger.warning(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
             except tuple(error_d.keys()) as ex:
                 error = ex
                 ex_msg = error_d[ex.__class__]
                 if ex_msg is not None:
-                    logging.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
+                    logger.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
                 if ex.__class__ in raise_e:
                     raise ex
             except tuple({Exception: ""}.keys()) as ex:
                 error = ex
-                logging.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s]  {func_info}'
+                logger.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s]  {func_info}'
                               f' {type(ex)} {str(ex)[:250]:250s}',
                               # f' {args} {kwargs}',
                               )
@@ -234,7 +234,7 @@ def async_task_auto_retry(
         while True:
             retry += 1
             try:
-                logging.debug(
+                logger.debug(
                     f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info}' + ''
                     # f' {args} {kwargs}'
                 )
@@ -257,7 +257,7 @@ def async_task_auto_retry(
                 if ex_msg is not None:
                     if callable(ex_msg):
                         ex_msg = ex_msg(ex)
-                    logging.warning(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
+                    logger.warning(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
                 if (raise_e is True) or (ex.__class__ in raise_e):
                     raise ex
             except tuple(error_d.keys()) as ex:
@@ -266,13 +266,13 @@ def async_task_auto_retry(
                 if ex_msg is not None:
                     if callable(ex_msg):
                         ex_msg = ex_msg(ex)
-                    logging.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
+                    logger.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
                     if (raise_e is True) or (ex.__class__ in raise_e):
                         raise ex
             except tuple({Exception: ""}.keys()) as ex:
                 error = ex
                 import traceback
-                logging.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s]  {func_info}'
+                logger.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s]  {func_info}'
                               f' {type(ex)} {str(ex)[:150]}'
                               f'\n{traceback.format_exc()}',
                               # f' {args} {kwargs}',

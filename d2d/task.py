@@ -9,6 +9,10 @@ import datetime
 import logging
 from . import utils
 
+
+logger = utils.logger.get_logger('d2d')
+
+
 def format_value(data):
     if isinstance(data, float) and data % 1 == 0.0:
         data = int(data)
@@ -84,10 +88,10 @@ class Migration(object):
                 self.database_to.create_index(index=table_to, data=f_d, pks=pks)
             if (idx < 3) or (not idx % self.windows):
                 # for k1,  k2, in zip(d.items(), f_d.items()):
-                #     utils.g_log.info('{} -> {} | {}==>{}'.format(
+                #     logger.info('{} -> {} | {}==>{}'.format(
                 #
                 #     ))
-                utils.g_log.info('{}\n|{}\n|\n|{}\n|{}\n'.format(f'{idx:080d}', d, f_d, f'{idx:0163d}'))
+                logger.info('{}\n|{}\n|\n|{}\n|{}\n'.format(f'{idx:080d}', d, f_d, f'{idx:0163d}'))
 
             if (self.size is not None) and (self.size < idx):
                 break
@@ -95,7 +99,7 @@ class Migration(object):
                 time_use = time.time() - time_start
                 proc = (idx + 1) / count
 
-                utils.g_log.info('[{:012d}/{:012d}] {:0>8s}/{:0>8s}  ...{:.2f}%   {}/{} -> {}/{}'.format(
+                logger.info('[{:012d}/{:012d}] {:0>8s}/{:0>8s}  ...{:.2f}%   {}/{} -> {}/{}'.format(
                     # self.database_to.get_count(table_to),
                     idx + 1, count, datetime.timedelta(seconds=time_use).__str__().split('.')[0],
                     datetime.timedelta(seconds=time_use / proc).__str__().split('.')[0],
@@ -178,11 +182,11 @@ class Migration2DB(object):
         table2d = {}
         for idx, d in enumerate(self.database_from2.get_data(self.table_from2)):
             if (idx < 5) or (not idx % self.windows):
-                utils.g_log.info('{}\n|{}'.format(f'{idx:080d}', d))
+                logger.info('{}\n|{}'.format(f'{idx:080d}', d))
                 time_use = time.time() - time_start
                 proc = (idx + 1) / count2
 
-                utils.g_log.info('[{:012d}/{:012d}] {:0>8s}/{:0>8s}  ...{:.2f}%   {}/{} Loading'.format(
+                logger.info('[{:012d}/{:012d}] {:0>8s}/{:0>8s}  ...{:.2f}%   {}/{} Loading'.format(
                     idx + 1, count2, datetime.timedelta(seconds=time_use).__str__().split('.')[0],
                     datetime.timedelta(seconds=time_use / proc).__str__().split('.')[0],
                     proc * 100,
@@ -214,10 +218,10 @@ class Migration2DB(object):
                 self.database_to.create_index(index=table_to, data=temp_d, pks=pks)
             if (idx < 5) or (not idx % self.windows):
                 # for k1,  k2, in zip(d.items(), f_d.items()):
-                #     utils.g_log.info('{} -> {} | {}==>{}'.format(
+                #     logger.info('{} -> {} | {}==>{}'.format(
                 #
                 #     ))
-                utils.g_log.info('{}\n|{}\n|\n|{}\n|{}\n'.format(f'{idx:080d}', d, f_d, f'{idx:0163d}'))
+                logger.info('{}\n|{}\n|\n|{}\n|{}\n'.format(f'{idx:080d}', d, f_d, f'{idx:0163d}'))
 
             if (self.size is not None) and (self.size < idx):
                 break
@@ -225,7 +229,7 @@ class Migration2DB(object):
                 time_use = time.time() - time_start
                 proc = (idx + 1) / count1
 
-                utils.g_log.info('[{:012d}/{:012d}] {:0>8s}/{:0>8s}  ...{:.2f}%   {}/{} -> {}/{}'.format(
+                logger.info('[{:012d}/{:012d}] {:0>8s}/{:0>8s}  ...{:.2f}%   {}/{} -> {}/{}'.format(
                     # self.database_to.get_count(table_to),
                     idx + 1, count1, datetime.timedelta(seconds=time_use).__str__().split('.')[0],
                     datetime.timedelta(seconds=time_use / proc).__str__().split('.')[0],

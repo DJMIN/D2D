@@ -1,34 +1,19 @@
 import time
 import logging
+import wrapt
+import datetime
+import asyncio.exceptions
 from json import JSONEncoder, dumps
+from asyncio import sleep
 from base64 import b64encode
+from async_timeout import timeout as a_timeout
+
 
 logger = logging.getLogger('d2d.task')
 
 
-class JSONEncoderWithBytes(JSONEncoder):
-    def default(self, o):
-        if isinstance(o, bytes):
-            return b64encode(o).decode('ascii')
-
-        elif hasattr(o, 'to_dict'):
-            return o.to_dict()
-
-        elif hasattr(o, 'isoformat'):
-            # datetime
-            return o.isoformat()
-
-        elif hasattr(o, '__str__'):
-            return str(o)
-
-        return super().default(o)
-
-
 def dump_json(obj):
-    '''
-    Dump `obj` into a JSON string.
-    '''
-    if obj == None:
+    if (not obj) or isinstance(obj, type(None)):
         return ''
 
     return dumps(obj, cls=JSONEncoderWithBytes)
@@ -94,7 +79,7 @@ def run_task_auto_retry(
                 logger.warning(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
         except tuple(error_d.keys()) as ex:
             error = ex
-            ex_msg = warning_d[ex.__class__]
+            ex_msg = error_d[ex.__class__]
             if ex_msg is not None:
                 logger.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
             if ex.__class__ in raise_e:
@@ -110,6 +95,236 @@ def run_task_auto_retry(
         ):
             raise error
         time.sleep(time_sleep)
+
+
+def task_auto_retry(
+        warning_d=None,
+        error_d=None,
+        raise_e=None,
+        time_sleep=3,
+        max_retry=10,
+        timeout=0,
+):
+    if not warning_d:
+        warning_d = {}
+    if not error_d:
+        error_d = {}
+    if not raise_e:
+        raise_e = []
+    """
+      :param timeout: 任务超时时间
+      :param max_retry: 任务最大重试次数
+      :param time_sleep: 错误等待时长
+      :param func: 任务函数
+      :param args: args参数
+      :param kwargs: kwargs参数
+      :param warning_d: 报警异常类 以及 异常信息 kv字典
+      {Exception: "这里是报警信息"}
+      :param error_d: 错误异常类 以及 异常信息 kv字典
+      {Exception: "这里是错误信息"}
+      :param raise_e: 需要抛出异常的异常类
+      [Exception]
+      :return:
+    """
+
+    @wrapt.decorator
+    def wrapper(func, _instance, args, kwargs):
+        if not isinstance(args, tuple):
+            args = (args,)
+        if not kwargs:
+            kwargs = {}
+        retry = 0
+        time_start = time.time()
+        func_info = f'{func.__code__.co_filename}:{func.__code__.co_firstlineno}:{func.__name__}()'
+        while True:
+            retry += 1
+            try:
+                logging.debug(
+                    f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info}' + ''
+                    # f' {args} {kwargs}'
+                )
+                return func(*args, **kwargs)
+            except tuple(warning_d.keys()) as ex:
+                error = ex
+                ex_msg = warning_d[ex.__class__]
+                if ex_msg is not None:
+                    logging.warning(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
+            except tuple(error_d.keys()) as ex:
+                error = ex
+                ex_msg = error_d[ex.__class__]
+                if ex_msg is not None:
+                    logging.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
+                if ex.__class__ in raise_e:
+                    raise ex
+            except tuple({Exception: ""}.keys()) as ex:
+                error = ex
+                logging.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s]  {func_info}'
+                              f' {type(ex)} {str(ex)[:250]:250s}',
+                              # f' {args} {kwargs}',
+                              )
+                if ex.__class__ in raise_e:
+                    raise ex
+            if (
+                    (max_retry and retry > max_retry) or
+                    (timeout and ((time.time() - time_start) > timeout))
+            ):
+                raise error
+            time.sleep(time_sleep)
+
+    return wrapper
+
+
+def async_task_auto_retry(
+        warning_d=None,
+        error_d=None,
+        raise_e=None,
+        time_sleep=5,
+        max_retry=0,
+        timeout=0,
+        hard_timeout=0,
+        # callback=None,
+        # error_callback=None,
+        finally_callback=None
+):
+    if not warning_d:
+        warning_d = {}
+    if not error_d:
+        error_d = {}
+    if not raise_e:
+        raise_e = []
+
+    """
+      :param timeout: 任务超时时间
+      :param hard_timeout: 任务超时时间退出
+      :param max_retry: 任务最大重试次数
+      :param time_sleep: 错误等待时长
+      :param func: 任务函数
+      :param args: args参数
+      :param kwargs: kwargs参数
+      :param warning_d: 报警异常类 以及 异常信息 kv字典
+      {Exception: "这里是报警信息"}
+      {Exception: lambda ex: f'这里是报警信息{ex.x}'}
+      :param error_d: 错误异常类 以及 异常信息 kv字典
+      {Exception: "这里是错误信息"}
+      :param raise_e: 需要抛出异常的异常类
+      [Exception]
+      :return:
+    """
+
+    @wrapt.decorator
+    async def wrapper(func, _instance, args, kwargs):
+        nonlocal hard_timeout
+        nonlocal timeout
+        if callable(hard_timeout):
+            _hard_timeout = hard_timeout(*args, **kwargs)
+        else:
+            _hard_timeout = hard_timeout
+        if callable(timeout):
+            _timeout = timeout(*args, **kwargs)
+        else:
+            _timeout = timeout
+
+        if not isinstance(args, tuple):
+            args = (args,)
+        if not kwargs:
+            kwargs = {}
+        retry = 0
+        time_start = time.time()
+        func_info = f'{func.__code__.co_filename}:{func.__code__.co_firstlineno}:{func.__name__}()'
+        while True:
+            retry += 1
+            try:
+                logging.debug(
+                    f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info}' + ''
+                    # f' {args} {kwargs}'
+                )
+
+                try:
+                    if _hard_timeout:
+                        async with a_timeout(_hard_timeout - int(time.time() - time_start)) as _:
+                            result = await func(*args, **kwargs)
+                            # print(_.expired)
+                    else:
+                        result = await func(*args, **kwargs)
+                except asyncio.exceptions.TimeoutError:
+                    e_t = TimeoutError(f'{func_info}超时 {_hard_timeout}s')
+                    setattr(e_t, 'seconds', _hard_timeout)
+                    raise e_t
+                return result
+            except tuple(warning_d.keys()) as ex:
+                error = ex
+                ex_msg = warning_d[ex.__class__]
+                if ex_msg is not None:
+                    if callable(ex_msg):
+                        ex_msg = ex_msg(ex)
+                    logging.warning(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
+                if (raise_e is True) or (ex.__class__ in raise_e):
+                    raise ex
+            except tuple(error_d.keys()) as ex:
+                error = ex
+                ex_msg = error_d[ex.__class__]
+                if ex_msg is not None:
+                    if callable(ex_msg):
+                        ex_msg = ex_msg(ex)
+                    logging.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s] {func_info} {ex_msg}')
+                    if (raise_e is True) or (ex.__class__ in raise_e):
+                        raise ex
+            except tuple({Exception: ""}.keys()) as ex:
+                error = ex
+                import traceback
+                logging.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s]  {func_info}'
+                              f' {type(ex)} {str(ex)[:150]}'
+                              f'\n{traceback.format_exc()}',
+                              # f' {args} {kwargs}',
+                              )
+                if (raise_e is True) or (ex.__class__ in raise_e):
+                    raise ex
+            finally:
+                if finally_callback is not None:
+                    finally_callback(*args, **kwargs)
+            if (
+                    (max_retry and retry > max_retry) or
+                    (_timeout and ((time.time() - time_start) > _timeout))
+            ):
+                raise error
+            await sleep(time_sleep)
+
+    return wrapper
+
+
+def custom_time(timestamp):
+    time_local = time.localtime(timestamp)
+    dt = time.strftime("%Y-%m-%d", time_local)
+    return dt
+
+
+class JSONEncoderWithBytes(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, bytes):
+            return b64encode(obj).decode('ascii')
+        elif hasattr(obj, 'to_json'):
+            return obj.to_json()
+        elif hasattr(obj, 'to_dict'):
+            return dumps(obj.to_dict(), cls=JSONEncoderWithBytes)
+        elif hasattr(obj, 'isoformat'):
+            # datetime
+            return obj.isoformat()
+        elif isinstance(obj, datetime.datetime):
+            return obj.strftime('%Y-%m-%d %H:%M:%S')
+        # elif hasattr(obj, '__str__'):
+        #     return str(obj)
+        elif isinstance(obj, datetime.date):
+            return obj.strftime('%Y-%m-%d')
+        else:
+            try:
+                return super().default(obj)
+            except Exception as ex:
+                if hasattr(obj, '__str__'):
+                    return str(obj)
+                elif hasattr(obj, '__repr__'):
+                    return obj.__repr__()
+                else:
+                    raise ex
 
 
 if __name__ == '__main__':

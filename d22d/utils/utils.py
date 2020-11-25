@@ -9,7 +9,7 @@ from base64 import b64encode
 from async_timeout import timeout as a_timeout
 
 
-logger = logging.getLogger('d2d.task')
+logger = logging.getLogger('d22d.task')
 
 
 def dump_json(obj):

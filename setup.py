@@ -4,10 +4,10 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='d2d',
-    version='1.0.0',
+    name='d22d',
+    version='1.1.1',
     description=(
-        'Migrating form DateBase to DateBase'
+        'Migrating form DateBase to DateBase by 2 lines code'
     ),
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",

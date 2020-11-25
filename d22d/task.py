@@ -10,7 +10,7 @@ import logging
 from . import utils
 
 
-logger = utils.logger.get_logger('d2d')
+logger = utils.logger.get_logger('d22d')
 
 
 def format_value(data):

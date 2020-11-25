@@ -185,7 +185,7 @@ log_conf_dict = {
             'format': '%(levelname)s %(message)s'
         },
         "color": {
-            "class": "d2d.utils.LogFormatter"
+            "class": "d22d.utils.LogFormatter"
         },
     },
     'handlers': {

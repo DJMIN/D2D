@@ -83,8 +83,8 @@ sudo python3.8 get-pip.py
 ```python
 import d22d
 from d22d import (
-ElasticSearchD, MySqlD, CsvD, JsonListD,
- XlsIbyFileD, XlsxIbyFileD, MongoDBD,
+ElasticSearchD, MySqlD, CsvD, SqlFileD, JsonListD,
+ XlsIbyFileD, XlsxIbyFileD, MongoDBD, 
  Migration, Migration2DB
 )
 
@@ -171,6 +171,20 @@ def test6():
     if save_list:
         file.save_data('user1', save_list)
 
+
+def test_csvtosql():
+    t = Migration(
+        database_from=CsvD(path='/home/user/Desktop'),
+        database_to=SqlFileD(path='../data1', compress=True),
+        table_from='user',
+        table_to='user',
+        windows=1000,
+        save_data_kwargs={
+            "update": 'ON DUPLICATE KEY UPDATE `timeupdate`=(timeupdate), last_active_time=GREATEST(VALUES(last_active_time), last_active_time)'
+        }
+    )
+    t.run()
+    
 
 if __name__ == '__main__':
     test5()

@@ -500,6 +500,7 @@ class CsvD(BaseFileD):
 class SqlFileD(BaseFileD):
     def __init__(self, path, extension='sql', encoding='utf8', mode='insert', compress=False):
         super().__init__(path, extension, encoding)
+        self.compress = compress
         self.mode = {
             1: 'INSERT',
             "insert": 'INSERT',
@@ -553,7 +554,7 @@ class SqlFileD(BaseFileD):
                     #     yield data
                     tbname, ks, vss = match_insert(line)
                     for vs in vss:
-                        yield {k: v for k, v in zip(ks, vs)}
+                        yield {k: v for k, v in zip(ks or table_keys, vs)}
 
         # con = sqlite3.connect(f'{self.gen_path_by_index(index)}')
         # query = f'select * from {index}'
@@ -563,20 +564,42 @@ class SqlFileD(BaseFileD):
         #     yield data
         # con.close()
 
-    def save_data(self, index, data, *args, **kwargs):
-        self._file_w[index].writeline(
-            '{} INTO `{}`({}) VALUES ({});\n'.format(
-                self.mode,
-                index,
-                ', '.join(d.keys()),
-                ', '.join(
-                    v.__str__() if isinstance(v, int) else (
-                        'NULL' if isinstance(v, type(None)) else (
-                            f"'{v}'"))
-                    for v in d.values()
+    def save_data(self, index, data, update=None, *args, **kwargs):
+        if self.compress:
+            d_keys = ', '.join(data[0].keys())
+            self._file_w[index].write(
+                '{} INTO `{}`({}) VALUES ({}){};\n'.format(
+                    self.mode,
+                    index,
+                    d_keys,
+                    '), ('.join(
+                        ', '.join(
+                            v.__str__() if isinstance(v, int) else (
+                                'NULL' if isinstance(v, type(None)) else (
+                                    f"'{v}'"))
+                            for v in d.values()
+                        )
+                        for d in data
+                    ),
+                    f'{update}' if update else ''
                 )
             )
-            for d in data)
+        else:
+            self._file_w[index].writelines(
+                '{} INTO `{}`({}) VALUES ({}) {};\n'.format(
+                    self.mode,
+                    index,
+                    ', '.join(d.keys()),
+                    ', '.join(
+                        v.__str__() if isinstance(v, int) else (
+                            'NULL' if isinstance(v, type(None)) else (
+                                f"'{v}'"))
+                        for v in d.values()
+                    ),
+                    f'{update}' if update else ''
+                )
+                for d in data)
+
         self._file_w[index].flush()
 
     def create_index(self, index, data, pks='id'):

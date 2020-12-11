@@ -576,27 +576,27 @@ class SqlFileD(BaseFileD):
                         ', '.join(
                             v.__str__() if isinstance(v, int) else (
                                 'NULL' if isinstance(v, type(None)) else (
-                                    f"'{v}'"))
+                                    f"{v.__str__().__repr__()}"))
                             for v in d.values()
                         )
                         for d in data
                     ),
-                    f'{update}' if update else ''
+                    f' {update}' if update else ''
                 )
             )
         else:
             self._file_w[index].writelines(
-                '{} INTO `{}`({}) VALUES ({}) {};\n'.format(
+                '{} INTO `{}`({}) VALUES ({}){};\n'.format(
                     self.mode,
                     index,
                     ', '.join(d.keys()),
                     ', '.join(
                         v.__str__() if isinstance(v, int) else (
                             'NULL' if isinstance(v, type(None)) else (
-                                f"'{v}'"))
+                                f"{v.__str__().__repr__()}"))
                         for v in d.values()
                     ),
-                    f'{update}' if update else ''
+                    f' {update}' if update else ''
                 )
                 for d in data)
 

@@ -414,10 +414,11 @@ def format_col(col):
     elif col == 'NULL':
         return None
     elif isinstance(col, str):
-        if col.startswith("'"):
-            col = col[1:]
-        if col.endswith("'"):
-            col = col[:-1]
+        col = col.replace("\\'", "'")
+        if col.startswith("'") and col.endswith("'"):
+            col = col[1:-1]
+        elif col.isdigit():
+            col = int(col)
         return col
     else:
         return col
@@ -431,18 +432,19 @@ def parse_values(values):
     latest_row = []
 
     reader = csv.reader(
-        [values], delimiter=',',
+        [values.replace("\\'", "\\\\'")],
+        delimiter=',',
         doublequote=False,
         escapechar='\\',
         quotechar="'",
         strict=True
     )
+    last_col = ''
     for reader_row in reader:
         for column in reader_row:
             column = column.strip()
-            # print(column)
             # If our current string is empty...
-            if len(column) == 0:
+            if len(column) == 0 and not last_col:
                 latest_row.append('')
                 continue
             elif column == 'NULL':
@@ -450,7 +452,7 @@ def parse_values(values):
                 continue
 
             # If our string starts with an open paren
-            if column[0] == "(":
+            if column and column[0] == "(":
                 # Assume that this column does not begin
                 # a new row.
                 new_row = False
@@ -476,15 +478,42 @@ def parse_values(values):
                 if len(latest_row) == 0:
                     column = column[1:]
             # Add our column to the row we're working on.
-            latest_row.append(column)
+
+            now_col = format_col(column)
+            if (
+                    (not last_col) and
+                    column.startswith("'") and
+                    (
+                            (
+                                    (
+                                            not (
+                                                    (column[-1:] == "'" and column[-2:-1] != '\\') or
+                                                    (column.endswith("')") and column[-3:-2] != '\\')
+                                            )
+                                    )
+                            ) or
+                            len(column) == 1
+                    )
+            ):
+                last_col = column
+            elif last_col:
+                last_col += f',{column}'
+                if column[-1:] == "'" and column[-2:-1] != '\\':
+                    latest_row.append(format_col(last_col))
+                    last_col = ''
+                elif column.endswith("')") and column[-3:-2] != '\\':
+                    latest_row.append(last_col)
+                    last_col = ''
+            else:
+                latest_row.append(now_col)
         # At the end of an INSERT statement, we'll
         # have the semicolon.
         # Make sure to remove the semicolon and
         # the close paren.
         if latest_row and latest_row[-1]:
-            if latest_row[-1][-2:] == ");":
-                latest_row[-1] = format_col(latest_row[-1][:-2])
-                yield latest_row
+            # if latest_row[-1][-2:] == ");":
+            #     latest_row[-1] = format_col(latest_row[-1][:-2])
+            #     yield latest_row
             if latest_row[-1][-1:] == ")":
                 latest_row[-1] = format_col(latest_row[-1][:-1])
                 yield latest_row
@@ -507,6 +536,7 @@ def match_insert(line):
 
 
 if __name__ == '__main__':
+
     for i in main111():
         print(i)
 

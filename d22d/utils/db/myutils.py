@@ -682,8 +682,8 @@ class ClientPyMySQL:
 
     def insert_many_with_dict_list(
             self, tablename, data,
-            # mode='INSERT IGNORE',
-            mode='REPLACE',
+            mode='INSERT IGNORE',
+            # mode='REPLACE',
             batch_size=5000):
         if not data:
 

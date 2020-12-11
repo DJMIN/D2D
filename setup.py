@@ -2,10 +2,10 @@
 # coding=utf-8
 
 from setuptools import setup, find_packages
-
+from version import __VERSION__
 setup(
     name='d22d',
-    version='1.1.1',
+    version=__VERSION__,
     description=(
         'Migrating form DateBase to DateBase by 2 lines code'
     ),

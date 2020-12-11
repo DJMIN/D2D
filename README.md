@@ -224,7 +224,6 @@ table_to： index名或table名或文件名
 1. mongodb duplicated
 1. ftp file
 1. sftp file
-1. .sql file
 1. excel index by Multi sheet(XlsIbySheetD XlsxIbySheetD)
 1. sqlite
 1. json dict
@@ -232,3 +231,10 @@ table_to： index名或table名或文件名
 1. Multi process
 1. cron
 1. img
+
+# upload pypi
+
+```shell
+python setup.py sdist bdist_wheel upload
+twine upload dist/*
+```

@@ -13,6 +13,8 @@ import json
 import logging
 import pymongo
 import datetime
+import sqlite3
+import pandas as pd
 import copy
 import pymongo.errors
 # import bson.objectid
@@ -23,6 +25,7 @@ from .myutils import EsModel
 from .myutils import BaseDB
 from .myutils import ClientPyMySQL
 from .myutils import ExcelWriter
+from .sqlfileextra import SqlExtractor, match_insert
 
 
 def get_realpath():
@@ -89,10 +92,10 @@ class ElasticSearchD(EsModel):
             r.update(i['_source'])
             yield r
 
-    def save_data(self, index, data, batch_size=1000, uuid_key=('id',), *args, **kwargs):
+    def save_data(self, index, data, batch_size=1000, pks='id', *args, **kwargs):
         actions = []
         for d in data:
-            _id = '-'.join(d[k] for k in uuid_key)
+            _id = '-'.join(d[k] for k in pks.split(','))
             actions.append({
                 '_op_type': 'index',  # 操作 index update create delete
                 '_index': index,  # index
@@ -113,7 +116,7 @@ class ElasticSearchD(EsModel):
         if isinstance(index, str):
             query = {}
         else:
-            query = copy.deepcopy(index[1])
+            query = {'query': index[1]['query']}
             index = index[0]
             if query.get("_source"):
                 query.pop("_source")
@@ -294,8 +297,8 @@ class MySqlD(ClientPyMySQL, ABC):
         else:
             return self._execute(sql=f'select * from {index}', *args, **kwargs)[1]
 
-    def save_data(self, index, *args, **kwargs):
-        self.insert_many_with_dict_list(tablename=index, *args, **kwargs)
+    def save_data(self, index, data, *args, **kwargs):
+        self.insert_many_with_dict_list(tablename=index, data=data, *args, **kwargs)
 
     def get_indexes(self):
         return list(t['Tables_in_test'] for t in self._execute(sql='show tables;')[1])
@@ -472,11 +475,15 @@ class CsvD(BaseFileD):
     # def w_open_func(cls, *args, **kwargs):
     #     return csv.writer(open(*args, **kwargs))
 
-    def get_data(self, index):
+    def get_data(self, index, fieldnames=None, restkey=None, restval=None,
+                 dialect="excel", **kwargs):
         with open(self.gen_path_by_index(index), 'r', encoding=self.encoding) as f:
-            keys = list(k.replace("'", '').replace('"', '') for k in f.readline().strip().split(self.split))
-            for line in f:
-                yield {keys[idx]: v for idx, v in enumerate(eval(line))}
+            for line in csv.DictReader(
+                    f, fieldnames=fieldnames, restkey=restkey, restval=restval, dialect=dialect, **kwargs):
+                yield line
+            # keys = list(k.replace("'", '').replace('"', '') for k in f.readline().strip().split(self.split))
+            # for line in f:
+            #     yield {keys[idx]: v for idx, v in enumerate(eval(line))}
 
     def save_data(self, index, data, *args, **kwargs):
         # self._file_w[index].writelines((self.split.join(f'{v.__repr__()}' for v in d.values()) + '\n') for d in data)
@@ -488,6 +495,93 @@ class CsvD(BaseFileD):
         # self._file_w[index].writerow((self.split.join(f'"{v.__repr__()[1:-1]}"' for v in data.keys()) + '\n'))
         self.__file_w[index].writerow([v for v in data.keys()])
         self._file_w[index].flush()
+
+
+class SqlFileD(BaseFileD):
+    def __init__(self, path, extension='sql', encoding='utf8', mode='insert', compress=False):
+        super().__init__(path, extension, encoding)
+        self.mode = {
+            1: 'INSERT',
+            "insert": 'INSERT',
+            "INSERT": 'INSERT',
+            2: 'INSERT IGNORE',
+            'insert ignore': 'INSERT IGNORE',
+            'INSERT IGNORE': 'INSERT IGNORE',
+            3: 'REPLACE',
+            "replace": 'REPLACE',
+            "REPLACE": 'REPLACE',
+        }.get(mode, mode)
+
+    def get_count(self, index):
+        count = get_line_num_fast(self.gen_path_by_index(index))
+        if count:
+            count -= 1
+        return count
+
+    def get_data(self, index):
+        with open(self.gen_path_by_index(index), 'r', encoding=self.encoding) as f:
+            table_info_str = ''
+            flag_create_table = False
+            table_keys = []
+
+            def is_insert(li):
+                return li.lower()[:7] in ('insert ', 'replace')
+
+            def get_table_keys(table_info_str_raw):
+                if table_info_str_raw.endswith(';'):
+                    table_info_str_raw = table_info_str_raw[-1]
+                info_str = f'{table_info_str_raw});'
+                return list(SqlExtractor(info_str).get_v_main()[0].keys())
+
+            for line in f:
+                line = line.strip()
+                if line.lower().startswith('create table'):
+                    flag_create_table = True
+                elif line.lower() == '-- ----------------------------':
+                    flag_create_table = False
+                    if table_info_str and not table_keys:
+                        table_keys = get_table_keys(table_info_str)
+                elif is_insert(line):
+                    flag_create_table = False
+                    if table_info_str and not table_keys:
+                        table_keys = get_table_keys(table_info_str)
+                if flag_create_table:
+                    if line.strip().startswith('`') or line.strip().lower().startswith('create table'):
+                        table_info_str += line
+                if is_insert(line):
+                    # for data in SqlExtractor(line.strip()).get_v_main(table_keys):
+                    #     yield data
+                    tbname, ks, vss = match_insert(line)
+                    for vs in vss:
+                        yield {k: v for k, v in zip(ks, vs)}
+
+        # con = sqlite3.connect(f'{self.gen_path_by_index(index)}')
+        # query = f'select * from {index}'
+        # data = pd.read_sql(query, con)
+        # for data in data.to_dict():
+        #     print(data)
+        #     yield data
+        # con.close()
+
+    def save_data(self, index, data, *args, **kwargs):
+        self._file_w[index].writeline(
+            '{} INTO `{}`({}) VALUES ({});\n'.format(
+                self.mode,
+                index,
+                ', '.join(d.keys()),
+                ', '.join(
+                    v.__str__() if isinstance(v, int) else (
+                        'NULL' if isinstance(v, type(None)) else (
+                            f"'{v}'"))
+                    for v in d.values()
+                )
+            )
+            for d in data)
+        self._file_w[index].flush()
+
+    def create_index(self, index, data, pks='id'):
+        super(self.__class__, self).create_index(index, data)
+        # self._file_w[index].writerow((self.split.join(f'"{v.__repr__()[1:-1]}"' for v in data.keys()) + '\n'))
 
 
 class JsonListD(BaseFileD):

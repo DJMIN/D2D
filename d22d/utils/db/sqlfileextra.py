@@ -420,7 +420,7 @@ def format_col(col):
         col = col.replace("\\'", "'").replace(RANDOM_STR, "\\")
         if col.startswith("'") and col.endswith("'"):
             col = col[1:-1]
-        elif not re.sub('[1-9]', '', col):
+        elif not re.sub('[0-9]', '', col):
             col = int(col)
         return col
     else:

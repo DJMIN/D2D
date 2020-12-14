@@ -566,7 +566,7 @@ class SqlFileD(BaseFileD):
 
     def save_data(self, index, data, update=None, *args, **kwargs):
         if self.compress:
-            d_keys = ', '.join(data[0].keys())
+            d_keys = ', '.join('`{}`'.format(data[0].keys()))
             self._file_w[index].write(
                 '{} INTO `{}`({}) VALUES ({}){};\n'.format(
                     self.mode,
@@ -589,7 +589,7 @@ class SqlFileD(BaseFileD):
                 '{} INTO `{}`({}) VALUES ({}){};\n'.format(
                     self.mode,
                     index,
-                    ', '.join(d.keys()),
+                    ', '.join('`{}`'.format(dk) for dk in d.keys()),
                     ', '.join(
                         v.__str__() if isinstance(v, int) else (
                             'NULL' if isinstance(v, type(None)) else (

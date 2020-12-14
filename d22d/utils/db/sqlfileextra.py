@@ -408,16 +408,19 @@ def main111():
                 # 在正则表达式最前面加上 (?i) 就可以忽略后面所有的大小写
 
 
+RANDOM_STR = '~!}#:~!|F"SF:}~!@WFR{:FE!@#R#3p[r23kef[1p2343213vdgbv21331r123rfefe2g23geb|}}{}{@!{}djk(#JFD)P!#!LSFD"21r1rff43>F{:DS'
+
+
 def format_col(col):
     if len(col) == 0:
         return ''
     elif col == 'NULL':
         return None
     elif isinstance(col, str):
-        col = col.replace("\\'", "'")
+        col = col.replace("\\'", "'").replace(RANDOM_STR, "\\")
         if col.startswith("'") and col.endswith("'"):
             col = col[1:-1]
-        elif col.isdigit():
+        elif not re.sub('[1-9]', '', col):
             col = int(col)
         return col
     else:
@@ -429,20 +432,37 @@ def parse_values(values):
     Given a file handle and the raw values from a MySQL INSERT
     statement, write the equivalent CSV to the file
     """
-    latest_row = []
 
+    delimiter = ', '
+    quotechar = "'"
+    latest_row = []
     reader = csv.reader(
-        [values.replace("\\'", "\\\\'")],
+        [values.replace("\\\\", RANDOM_STR).replace("\\'", "\\\\'")],
+        # v:= [values.replace("\\'", "\\\\'")],
+        # [values.replace("\\'", random_str)],
+        # [values],
         delimiter=',',
         doublequote=False,
+        # skipinitialspace=True,
         escapechar='\\',
-        quotechar="'",
+        quotechar=quotechar,
         strict=True
     )
+    # reader = re.split(f"{delimiter}(?=([^{quotechar}]*{quotechar}[^{quotechar}]*{quotechar})*[^{quotechar}]*$)", values)
+    # reader = re.findall(f'[^{delimiter}{quotechar}]+|{delimiter}{delimiter}|(?:{quotechar}[^{delimiter}{quotechar}]*{quotechar}[^{quotechar}]*{quotechar}[^{quotechar}]*){quotechar}|{quotechar}(?:[^{quotechar}])*{quotechar}', values)
     last_col = ''
+    last_split = False
+    # reader = re.split(f'(?:^|({delimiter}))(?:{quotechar}(([^{quotechar}]*)+((?:{quotechar}{quotechar}([^{quotechar}]*)+)*)+){quotechar}|(((^((?!{delimiter}|{quotechar}).)+$)*)+))', values)
+    # for i in range(1):
+    #     for column in reader:
+
     for reader_row in reader:
         for column in reader_row:
-            column = column.strip()
+            if len(column) and column[0] == ' ' and not last_col:
+                column = column[1:]
+            if not column or (not last_col and delimiter == column):
+                continue
+            # column = column.strip()
             # If our current string is empty...
             if len(column) == 0 and not last_col:
                 latest_row.append('')
@@ -450,7 +470,6 @@ def parse_values(values):
             elif column == 'NULL':
                 latest_row.append(None)
                 continue
-
             # If our string starts with an open paren
             if column and column[0] == "(":
                 # Assume that this column does not begin
@@ -464,6 +483,7 @@ def parse_values(values):
                     # as:
                     #    1) the previous entry ended in a )
                     #    2) the current entry starts with a (
+                    print(latest_row)
                     if latest_row[-1][-1] == ")":
                         # Remove the close paren.
                         latest_row[-1] = format_col(latest_row[-1][:-1])
@@ -497,7 +517,15 @@ def parse_values(values):
             ):
                 last_col = column
             elif last_col:
-                last_col += f',{column}'
+                if column != delimiter:
+                    if last_split:
+                        last_col += f'{column}'
+                    else:
+                        last_col += f',{column}'
+                    last_split = False
+                else:
+                    last_col += delimiter
+                    last_split = True
                 if column[-1:] == "'" and column[-2:-1] != '\\':
                     latest_row.append(format_col(last_col))
                     last_col = ''
@@ -529,7 +557,6 @@ def match_insert(line):
         keys = [re.sub(r'[`\'\"]', '', key) for key in m.group('keys').strip().split(',')] if m.group('keys') else []
         # print([key for key in re.split(r'\),\s?\(', m.group('values').strip())])
         # print(m.group('values').strip())
-        # print(m.groups())
         values = [_ for _ in parse_values(m.group('values').strip())]
 
     return table_name, keys, values
@@ -537,7 +564,7 @@ def match_insert(line):
 
 if __name__ == '__main__':
 
-    for i in main111():
+    for i in parse_values(r"""(503802367, NULL, '(｡•ˇ‸ˇ•｡) 为中华之崛起添砖加瓦', '❤️', 'lovefeng', '+8613554000090', '中国', '湖北', '武汉', 0, 1603724529, 1603724529, 0, '-7844803906386878838', 'once session', 1, NULL, NULL, NULL, NULL, 1603724529, NULL)"""):
         print(i)
 
     # sql = """select
@@ -691,4 +718,4 @@ SET FOREIGN_KEY_CHECKS = 1;
 
     # print(sql_extractor.sql)
 
-    # sql_extractor.get_v(sql_extractor.parsed[0].tokens)
+    # sql_extractor.get_v(sxql_extractor.parsed[0].tokens)

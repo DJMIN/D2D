@@ -554,7 +554,7 @@ def match_insert(line):
     table_name, keys, values = '', [], []
     if m:
         table_name = m.group('table_name')
-        keys = [re.sub(r'[`\'\"]', '', key) for key in m.group('keys').strip().split(',')] if m.group('keys') else []
+        keys = [re.sub(r'[`\'\"\s]', '', key) for key in m.group('keys').strip().split(',')] if m.group('keys') else []
         # print([key for key in re.split(r'\),\s?\(', m.group('values').strip())])
         # print(m.group('values').strip())
         values = [_ for _ in parse_values(m.group('values').strip())]

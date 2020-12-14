@@ -25,7 +25,7 @@ from .myutils import EsModel
 from .myutils import BaseDB
 from .myutils import ClientPyMySQL
 from .myutils import ExcelWriter
-from .sqlfileextra import SqlExtractor, match_insert
+from .sqlfileextra import SqlExtractor, match_insert, RANDOM_STR
 
 
 def get_realpath():
@@ -576,7 +576,16 @@ class SqlFileD(BaseFileD):
                         ', '.join(
                             v.__str__() if isinstance(v, int) else (
                                 'NULL' if isinstance(v, type(None)) else (
-                                    f"{v.__str__().__repr__()}"))
+                                    "'{}'".format(
+                                        v.__str__().replace(
+                                            '\\"', RANDOM_STR).replace(
+                                            "\\", '\\\\').replace(
+                                            "'", '\\\'').replace(
+                                            RANDOM_STR, '\\"')) if isinstance(v, str) else (
+                                        f"{v.__str__().__repr__()}"
+                                    )
+                                )
+                            )
                             for v in d.values()
                         )
                         for d in data
@@ -593,7 +602,15 @@ class SqlFileD(BaseFileD):
                     ', '.join(
                         v.__str__() if isinstance(v, int) else (
                             'NULL' if isinstance(v, type(None)) else (
-                                f"{v.__str__().__repr__()}"))
+                                "'{}'".format(v.__str__().replace(
+                                            '\\"', RANDOM_STR).replace(
+                                            "\\", '\\\\').replace(
+                                            "'", '\\\'').replace(
+                                            RANDOM_STR, '\\"')
+                                ) if isinstance(v, str) else (
+                                        f"{v.__str__().__repr__()}"
+                                )
+                            ))
                         for v in d.values()
                     ),
                     f' {update}' if update else ''

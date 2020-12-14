@@ -437,7 +437,7 @@ def parse_values(values):
     quotechar = "'"
     latest_row = []
     reader = csv.reader(
-        [values.replace("\\\\", RANDOM_STR).replace("\\'", "\\\\'")],
+        [values.replace("\\\\", RANDOM_STR).replace("\\", "\\\\").replace('\\"', f'{RANDOM_STR}"')],
         # v:= [values.replace("\\'", "\\\\'")],
         # [values.replace("\\'", random_str)],
         # [values],
@@ -457,10 +457,22 @@ def parse_values(values):
     #     for column in reader:
 
     for reader_row in reader:
-        for column in reader_row:
+        for idx, column in enumerate(reader_row):
+            if column == f"{delimiter}{quotechar}":
+                last_col += ",'"
+                latest_row.append(format_col(last_col))
+                latest_row.append('')
+                last_col = ""
+                column = ""
+            if column.startswith(f"{delimiter}"):
+                last_col += ",'"
+                latest_row.append(format_col(last_col))
+                last_col = "'"
+                last_split = True
+                column = column[2:]
             if len(column) and column[0] == ' ' and not last_col:
                 column = column[1:]
-            if not column or (not last_col and delimiter == column):
+            if not last_col and (not column or delimiter == column):
                 continue
             # column = column.strip()
             # If our current string is empty...
@@ -483,7 +495,7 @@ def parse_values(values):
                     # as:
                     #    1) the previous entry ended in a )
                     #    2) the current entry starts with a (
-                    print(latest_row)
+                    # print(latest_row)
                     if latest_row[-1][-1] == ")":
                         # Remove the close paren.
                         latest_row[-1] = format_col(latest_row[-1][:-1])
@@ -564,7 +576,12 @@ def match_insert(line):
 
 if __name__ == '__main__':
 
-    for i in parse_values(r"""(503802367, NULL, '(｡•ˇ‸ˇ•｡) 为中华之崛起添砖加瓦', '❤️', 'lovefeng', '+8613554000090', '中国', '湖北', '武汉', 0, 1603724529, 1603724529, 0, '-7844803906386878838', 'once session', 1, NULL, NULL, NULL, NULL, 1603724529, NULL)"""):
+    # for i in parse_values(r"""(503802367, NULL, '(｡•ˇ‸ˇ•｡) 为中华之崛起添砖加瓦', '❤️', 'lovefeng')"""):
+    # for i in parse_values(r"""(1418913438, NULL, 'faku', 'gh6g,, ,,,', '')"""):
+    # for i in parse_values(r"""(1023904092, NULL, 'JIANG,', 'Ben', '')"""):
+    for i in parse_values(r"""(2, 1, NULL, b'0000000000000000000000000000000000000000000000000000000000000001', NULL, '33', '2020-12-09', '2020-12-09 17:52:44.000000', 234, 2134, '1222', 123, NULL, NULL, 234, 13, '{\"1\": \"2\"}', NULL, NULL, '234', NULL, 234, '123r', NULL, NULL, NULL, 1234, NULL, NULL, 1234, '', 1234, '1234', '17:57:22.000000', '2020-12-09 17:57:25.000000', NULL, 1, 'd213d', NULL, '23r2e132r1')"""):
+    # for i in parse_values(r"""(1023904092, NULL, 'JIANG,'', 'Ben', '')"""):
+    # for i in parse_values(r"""(952012376, NULL, 'Remy', '\" 孙琪\"', '')"""):
         print(i)
 
     # sql = """select

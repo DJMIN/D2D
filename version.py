@@ -1,4 +1,4 @@
-__VERSION__ = '1.1.7'
+__VERSION__ = '1.1.8'
 
 __ALL__ = [
     'ElasticSearchD',
@@ -7,6 +7,7 @@ __ALL__ = [
     'JsonListD',
     'XlsIbyFileD',
     'XlsxIbyFileD',
+    'SqlFileD',
     'MongoDBD',
     'Migration',
     'Migration2DB',

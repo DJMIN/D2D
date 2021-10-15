@@ -9,8 +9,15 @@ import datetime
 import logging
 from . import utils
 
+if '-debug' in sys.argv:
+    logger = utils.logger.get_logger('d22d')
+else:
+    logger = logging.getLogger('d22d')
 
-logger = utils.logger.get_logger('d22d')
+
+def open_log():
+    global logger
+    logger = utils.logger.get_logger('d22d')
 
 
 def format_value(data):
@@ -94,9 +101,9 @@ class Migration(object):
         del self.database_to
 
     def run_one(self, table_from, table_to, pks):
-        count = self.count_from or self.database_from.get_count(table_from)
         gkws = {}
         gkws.update(self.get_data_kwargs)
+        count = self.count_from or self.database_from.get_count(table_from, **gkws)
         table = self.database_from.get_data(table_from, **gkws)
         action = []
         time_start = time.time()

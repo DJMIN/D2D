@@ -1,13 +1,15 @@
+import random
+import string
 import time
 import logging
 import wrapt
+import traceback
 import datetime
 import asyncio.exceptions
 from json import JSONEncoder, dumps
 from asyncio import sleep
 from base64 import b64encode
 from async_timeout import timeout as a_timeout
-
 
 logger = logging.getLogger('d22d.task')
 
@@ -86,7 +88,8 @@ def run_task_auto_retry(
                 raise ex
         except tuple({Exception: ""}.keys()) as ex:
             error = ex
-            logger.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s]  {func_info}', ex)
+            logger.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s]  {func_info}'
+                         f' {type(ex)} {str(ex)[:250]:250s}\n{traceback.format_exc()}')
             if ex.__class__ in raise_e:
                 raise ex
         if (
@@ -158,10 +161,11 @@ def task_auto_retry(
                     raise ex
             except tuple({Exception: ""}.keys()) as ex:
                 error = ex
-                logger.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s]  {func_info}'
-                              f' {type(ex)} {str(ex)[:250]:250s}',
-                              # f' {args} {kwargs}',
-                              )
+                logger.error(
+                    f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s]  {func_info}'
+                    f' {type(ex)} {str(ex)[:250]:250s}\n{traceback.format_exc()}',
+                    # f' {args} {kwargs}',
+                )
                 if ex.__class__ in raise_e:
                     raise ex
             if (
@@ -273,10 +277,10 @@ def async_task_auto_retry(
                 error = ex
                 import traceback
                 logger.error(f'[RetryS:{retry:04d}:{time.time() - time_start:.2f}s]  {func_info}'
-                              f' {type(ex)} {str(ex)[:150]}'
-                              f'\n{traceback.format_exc()}',
-                              # f' {args} {kwargs}',
-                              )
+                             f' {type(ex)} {str(ex)[:150]}'
+                             f'\n{traceback.format_exc()}',
+                             # f' {args} {kwargs}',
+                             )
                 if (raise_e is True) or (ex.__class__ in raise_e):
                     raise ex
             finally:
@@ -326,6 +330,56 @@ class JSONEncoderWithBytes(JSONEncoder):
                 else:
                     raise ex
 
+def format_error(ex):
+    return '[{}] {}\n{}'.format(type(ex), ex, traceback.format_exc())
+
+
+def with_cur_lock():
+    @wrapt.decorator
+    def wrapper(func, instance, args, kwargs):
+        lock = instance.cur_lock
+        if lock.locked():
+            raise IOError(f'{args[0:]} cur locked')
+        lock.acquire()
+        try:
+            res = func(instance.cur, *args, **kwargs)
+            return res
+        except Exception as ex:
+            raise ex
+        finally:
+            lock.release()
+
+    return wrapper
+
+
+def gen_pass(val_type='all', val_len=8):
+    src_digits = string.digits  # string_数字  '0123456789'
+    src_uppercase = string.ascii_uppercase  # string_大写字母 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    src_lowercase = string.ascii_lowercase  # string_小写字母 'abcdefghijklmnopqrstuvwxyz'
+    src_special = string.punctuation  # string_特殊字符 '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'
+
+    if val_type.lower().find('int') == -1:
+        # sample从序列中选择n个随机独立的元素，返回列表
+        num = random.sample(src_digits, 1)  # 随机取1位数字
+        lower = random.sample(src_uppercase, 1)  # 随机取1位小写字母
+        upper = random.sample(src_lowercase, 1)  # 随机取1位大写字母
+        special = random.sample(src_special, 1)  # 随机取1位大写字母特殊字符
+        other = random.sample(string.ascii_letters + string.digits + string.punctuation, val_len - 4)
+        # 生成字符串
+        # print(num, lower, upper, special, other)
+        pwd_list = num + lower + upper + special + other
+        # shuffle将一个序列中的元素随机打乱，打乱字符串
+        random.shuffle(pwd_list)
+        # 列表转字符串
+        password_str = ''.join(pwd_list)
+        # print(password_str)
+    else:
+        pwd_list = random.sample(string.digits, val_len)
+        random.shuffle(pwd_list)
+        # 列表转字符串
+        password_str = int(''.join(pwd_list))
+
+    return password_str
 
 if __name__ == '__main__':
     run_task_auto_retry(run_task_auto_retry)

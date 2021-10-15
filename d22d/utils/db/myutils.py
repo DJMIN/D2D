@@ -17,7 +17,7 @@ import hashlib
 import elasticsearch
 import elasticsearch.helpers
 from six import itervalues
-from werkzeug.utils import text_type
+# from werkzeug.utils import text_type
 import psycopg2 as d_b_c
 import psycopg2
 
@@ -140,7 +140,7 @@ class T:
 
 
 def secure_filename(filename):
-    if isinstance(filename, text_type):
+    if isinstance(filename, str):
         from unicodedata import normalize
         filename = normalize('NFKD', filename).encode('utf-8', 'ignore')  # 转码
         if not PY2:
@@ -543,8 +543,8 @@ class ClientPyMySQL:
         """
 
         import pymysql
-        from DBUtils import SteadyDB
-        self.dbc = SteadyDB.connect(
+        from dbutils.steady_db import connect
+        self.dbc = connect(
             creator=pymysql,
             host=host, user=user,
             passwd=passwd,

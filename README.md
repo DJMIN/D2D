@@ -85,10 +85,11 @@ import d22d
 from d22d import (
 ElasticSearchD, MySqlD, CsvD, SqlFileD, JsonListD,
  XlsIbyFileD, XlsxIbyFileD, MongoDBD, 
- Migration, Migration2DB
+ Migration, Migration2DB, open_log
 )
 
 def test1():
+    open_log()
     t = Migration(
         database_from=MySqlD(host='localhost', port=3306, database='test',
                                 user='root', passwd='root'),

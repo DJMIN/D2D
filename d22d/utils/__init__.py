@@ -4,7 +4,7 @@
 
 import os
 import random
-from . import logger, db
+from . import logger, db, diskcacheofsqlite
 from .utils import run_task_auto_retry, task_auto_retry, async_task_auto_retry
 from .db import *
 from .logger import LogFormatter

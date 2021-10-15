@@ -478,10 +478,11 @@ def get_line_num_fast(filename):
 
 
 class BaseFileD(object):
-    def __init__(self, path, extension, encoding='utf8-sig'):
+    def __init__(self, path, extension, encoding='utf8-sig', newline=None):
         self.path = path
         self.extension = extension
         self.encoding = encoding
+        self.newline = newline
         self._file_w = dict()
         self._indexes_path = dict()
 
@@ -536,12 +537,12 @@ class BaseFileD(object):
         dirname = os.path.dirname(path)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
-        self._file_w.setdefault(index, self.w_open_func(path, 'w', encoding=self.encoding))
+        self._file_w.setdefault(index, self.w_open_func(path, 'w', encoding=self.encoding, newline=self.newline))
 
 
 class CsvD(BaseFileD):
     def __init__(self, path, split=',', extension='csv', encoding='utf8'):
-        super().__init__(path, extension, encoding)
+        super().__init__(path, extension, encoding, newline='')
         self.split = split
         self._file_w = dict()
         self.___file_w = dict()
@@ -1273,6 +1274,26 @@ class ClickHouseD(BaseClient):
             return self.execute_iter(sql=f'{sub_sql}', *args, **kwargs)
         else:
             return self.execute_iter(sql=f'select * from {sub_sql}', *args, **kwargs)
+
+
+class ListD:
+    def __init__(self, index, data=None):
+        self.data = {index: data or []}
+
+    def __repr__(self):
+        return f'ListD:{list(self.data.keys())}'
+
+    def get_data(self, index, *args, **kwargs):
+        return self.data[index]
+
+    def save_data(self, index, data, *args, **kwargs):
+        self.data[index].extend(data)
+
+    def get_indexes(self):
+        return list(self.data.keys())
+
+    def get_count(self, index, *args, **kwargs):
+        return len(self.data[index])
 
 
 class OracleD(BaseClient):

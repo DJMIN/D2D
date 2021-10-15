@@ -1,4 +1,4 @@
-__VERSION__ = '1.1.9'
+__VERSION__ = '1.1.11'
 
 __ALL__ = [
     'ElasticSearchD',
@@ -8,6 +8,8 @@ __ALL__ = [
     'XlsIbyFileD',
     'XlsxIbyFileD',
     'SqlFileD',
+    'ListD',
+    'ClickHouseD',
     'MongoDBD',
     'Migration',
     'Migration2DB',

@@ -684,9 +684,8 @@ class ClientPyMySQL:
             self, tablename, data,
             mode='INSERT IGNORE',
             # mode='REPLACE',
-            batch_size=5000):
+            batch_size=5000, *args, **kwargs):
         if not data:
-
             return
 
         tablename = self.escape(tablename)

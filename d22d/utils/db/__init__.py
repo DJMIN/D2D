@@ -1283,6 +1283,9 @@ class ListD:
     def __repr__(self):
         return f'ListD:{list(self.data.keys())}'
 
+    def create_index(self, index, *args, **kwargs):
+        self.data[index] = []
+
     def get_data(self, index, *args, **kwargs):
         return self.data[index]
 

@@ -744,28 +744,23 @@ class XlsIbyFileD(BaseFileD):
 
     def get_count(self, index, *args, **kwargs):
         all_line = 0
-        workbook = xlrd.open_workbook(self.gen_path_by_index(index))
-        for idx, name in enumerate(workbook.sheet_names()):
-            logging.info(f'sheet:{idx}:{name}')
-            worksheet = workbook.sheet_by_index(idx)
-            all_line += worksheet.nrows
+        workbook = openpyxl.load_workbook(self.gen_path_by_index(index))
+        for idx, worksheet in enumerate(workbook):
+            logging.info(f'sheet:{idx}:{worksheet.title}')
+            all_line += worksheet.max_row
         return all_line
 
     def get_data(self, index):
-        workbook = xlrd.open_workbook(self.gen_path_by_index(index))  # 文件路径
+        workbook = openpyxl.load_workbook(self.gen_path_by_index(index))  # 文件路径
         # 获取所有sheet的名字
-        for idx, name in enumerate(workbook.sheet_names()):
-            logging.info(f'sheet:{idx}:{name}')
-            worksheet = workbook.sheet_by_index(idx)
-            nrows = worksheet.nrows
+        for idx, worksheet in enumerate(workbook):
+            logging.info(f'sheet:{idx}:{worksheet.title}')
+            nrows = worksheet.max_row
             if not nrows:
                 continue
-            keys = {i: key for i, key in enumerate(worksheet.row_values(0))}
-            for line_num in range(1, nrows):
-                line = worksheet.row_values(line_num)
-                # shengri = worksheet.row(line_num)[3].ctype
-                # print(shengri)
-                data = {keys[i]: key for i, key in enumerate(line)}
+            keys = {i: key.value for i, key in enumerate(worksheet[1])}
+            for row in worksheet.rows:
+                data = {keys[i]: cell.value for i, cell in enumerate(row)}
                 yield data
 
     def save_data(self, index, data, *args, **kwargs):
@@ -1277,25 +1272,28 @@ class ClickHouseD(BaseClient):
 
 
 class ListD:
-    def __init__(self, index, data=None):
+    def __init__(self, index='default', data=None):
         self.data = {index: data or []}
 
     def __repr__(self):
         return f'ListD:{list(self.data.keys())}'
 
-    def create_index(self, index, *args, **kwargs):
+    def create_index(self, index='default', *args, **kwargs):
         self.data[index] = []
 
-    def get_data(self, index, *args, **kwargs):
+    def get_data(self, index='default', *args, **kwargs):
         return self.data[index]
 
-    def save_data(self, index, data, *args, **kwargs):
+    def get_dict(self, index='default', pkey='', *args, **kwargs):
+        return {item.get(pkey, ''): item for item in self.data[index]}
+
+    def save_data(self, index='default', data=[], *args, **kwargs):
         self.data[index].extend(data)
 
     def get_indexes(self):
         return list(self.data.keys())
 
-    def get_count(self, index, *args, **kwargs):
+    def get_count(self, index='default', *args, **kwargs):
         return len(self.data[index])
 
 

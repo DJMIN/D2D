@@ -7,7 +7,7 @@ setup(
     name='d22d',
     version=__VERSION__,
     description=(
-        'Migrating form DateBase to DateBase by 2 lines code'
+        'Migrating form DataBase to DataBase by 2 lines code'
     ),
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",

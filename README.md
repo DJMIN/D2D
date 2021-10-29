@@ -1,6 +1,6 @@
 # d22d
 # D22[twaɪs]D 
-Migrating form DateBase to DateBase by 2 lines code, The fastest migration tool for all database by scheduled tasks with
+Migrating form DataBase to DataBase by 2 lines code, The fastest migration tool for all database by scheduled tasks with
 2 lines of code.    
 (.csv .sql .json .xls .xlsx mysql ElasticSearch excel mongodb sqlite redis...)    
 2行代码即可使用最高效的方式最快的速度在各种数据库中迁移数据，并且可以实行计划任务，定时迁移增量数据

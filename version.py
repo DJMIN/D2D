@@ -1,9 +1,10 @@
-__VERSION__ = '1.1.14'
+__VERSION__ = '1.1.15'
 
 __ALL__ = [
     'ElasticSearchD',
     'MySqlD',
     'CsvD',
+    'ZipD',
     'JsonListD',
     'XlsIbyFileD',
     'XlsxIbyFileD',

@@ -586,6 +586,39 @@ class CsvD(BaseFileD):
         self._file_w[index].flush()
 
 
+class ZipD(object):
+    def __init__(self, path, get_file_data_func=None, fieldnames=[], extension='zip', encoding='utf8'):
+        self.path = path
+        self.fieldnames = fieldnames
+        self.extension = extension
+        if get_file_data_func:
+            self.get_file_data_func = get_file_data_func
+
+    def get_file_data_func(self, file_path):
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                yield {k: v for k, v in zip(self.fieldnames, line.strip().split(','))}
+
+    def get_count(self, index, *args, **kwargs):
+        return 1
+
+    def get_data(self, index, **kwargs):
+        from d22d.utils.ziputils import un_zip, iter_path, remove_folder
+        try:
+            uz_path = un_zip(os.path.join(self.path, f'{index}.{self.extension}'), **kwargs)
+            for file_path in iter_path(uz_path, return_type=3):
+                for line in self.get_file_data_func(file_path):
+                    yield line
+        finally:
+            remove_folder(uz_path)
+
+    def save_data(self, index, data, *args, **kwargs):
+        raise NotImplementedError
+
+    def create_index(self, index, data, pks='id'):
+        raise NotImplementedError
+
+
 class SqlFileD(BaseFileD):
     def __init__(self, path, extension='sql', encoding='utf8', mode='insert', compress=False):
         super().__init__(path, extension, encoding)
@@ -759,7 +792,7 @@ class XlsIbyFileD(BaseFileD):
             if not nrows:
                 continue
             keys = {i: key.value for i, key in enumerate(worksheet[1])}
-            for row in worksheet.rows:
+            for row in worksheet.iter_rows(min_row=2):
                 data = {keys[i]: cell.value for i, cell in enumerate(row)}
                 yield data
 

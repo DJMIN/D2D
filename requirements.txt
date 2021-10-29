@@ -85,6 +85,7 @@ sqlparse
 diskcache
 tomorrow3
 clickhouse_driver
+zip-files
 # supervisor
 # flask_mongoengine install error need 3 pkg
 # mysql

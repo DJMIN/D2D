@@ -107,5 +107,6 @@ setup(
         "diskcache",
         "tomorrow3",
         "clickhouse_driver",
+        "zip-files",
     ],
 )

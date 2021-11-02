@@ -28,7 +28,9 @@ from .myutils import BaseDB
 from .myutils import ClientPyMySQL
 from .myutils import ExcelWriter
 from .sqlfileextra import SqlExtractor, match_insert, RANDOM_STR
-from ..utils import format_error, with_cur_lock, gen_pass, run_task_auto_retry
+from ..utils import format_error, with_cur_lock, gen_pass, run_task_auto_retry, remove_folder, iter_path
+from ..rarutils import un_rar
+from ..ziputils import un_zip
 from clickhouse_driver import connect as clickhouse_connect
 from threading import Lock
 from threading import local as threading_local
@@ -587,9 +589,9 @@ class CsvD(BaseFileD):
 
 
 class ZipD(object):
-    def __init__(self, path, get_file_data_func=None, fieldnames=[], extension='zip', encoding='utf8'):
+    def __init__(self, path, get_file_data_func=None, fieldnames=None, extension='zip', encoding='utf8'):
         self.path = path
-        self.fieldnames = fieldnames
+        self.fieldnames = fieldnames or []
         self.extension = extension
         if get_file_data_func:
             self.get_file_data_func = get_file_data_func
@@ -603,20 +605,39 @@ class ZipD(object):
         return 1
 
     def get_data(self, index, **kwargs):
-        from d22d.utils.ziputils import un_zip, iter_path, remove_folder
+        uz_path = None
         try:
             uz_path = un_zip(os.path.join(self.path, f'{index}.{self.extension}'), **kwargs)
             for file_path in iter_path(uz_path, return_type=3):
                 for line in self.get_file_data_func(file_path):
                     yield line
         finally:
-            remove_folder(uz_path)
+            if uz_path:
+                remove_folder(uz_path)
 
     def save_data(self, index, data, *args, **kwargs):
         raise NotImplementedError
 
     def create_index(self, index, data, pks='id'):
         raise NotImplementedError
+
+
+class RarD(ZipD):
+    def __init__(self, path, get_file_data_func=None, fieldnames=None, extension='rar', encoding='utf8'):
+        super().__init__(
+            path=path, get_file_data_func=get_file_data_func,
+            fieldnames=fieldnames or [], extension=extension, encoding=encoding)
+
+    def get_data(self, index, **kwargs):
+        ur_path = None
+        try:
+            ur_path = un_rar(os.path.join(self.path, f'{index}.{self.extension}'), **kwargs)
+            for file_path in iter_path(ur_path, return_type=3):
+                for line in self.get_file_data_func(file_path):
+                    yield line
+        finally:
+            if ur_path:
+                remove_folder(ur_path)
 
 
 class SqlFileD(BaseFileD):

@@ -108,5 +108,6 @@ setup(
         "tomorrow3",
         "clickhouse_driver",
         "zip-files",
+        "unrar-cffi",
     ],
 )

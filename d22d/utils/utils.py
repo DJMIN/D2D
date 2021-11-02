@@ -1,10 +1,12 @@
 import random
 import string
 import time
+import os
 import logging
 import wrapt
 import traceback
 import datetime
+import shutil
 import asyncio.exceptions
 from json import JSONEncoder, dumps
 from asyncio import sleep
@@ -381,5 +383,64 @@ def gen_pass(val_type='all', val_len=8):
 
     return password_str
 
-if __name__ == '__main__':
-    run_task_auto_retry(run_task_auto_retry)
+
+def remove_folder(path):
+    if os.path.exists(path):
+        shutil.rmtree(path)
+
+
+def makedirs(path):
+    folder_name = path.split('\\')[-1].split('/')[-1]
+    is_folder = '.' not in folder_name
+    path = os.path.realpath(path)
+    out_f_path = os.path.dirname(path)
+    if is_folder:
+        out_f_path = os.path.join(out_f_path, folder_name)
+    if not os.path.exists(out_f_path):
+        logger.info(f'正在创建新文件夹：{out_f_path}，因为{path}需要')
+        os.makedirs(out_f_path)
+        
+
+def iter_path(path, exclude=None, include=None, exclude_path=None, include_path=None, return_type=2, open_kwargs=None):
+    if exclude is None:
+        exclude = []
+    if include is None:
+        include = []
+    if exclude_path is None:
+        exclude_path = []
+    if include_path is None:
+        include_path = []
+    if open_kwargs is None:
+        open_kwargs = {}
+    logging.info(f'开始遍历文件夹：{path}')
+    cnt = 0
+    cnt_size = 0
+    cnt_iter = 0
+    for root, fs, fns in os.walk(path):
+        for fn in fns:
+            cnt += 1
+            if include and not any([bool(include_str in fn) for include_str in include]):
+                continue
+            if exclude and any([bool(exclude_str in fn) for exclude_str in exclude]):
+                continue
+            f_path = os.path.join(root, fn)
+            if include_path and not any([bool(include_str in f_path) for include_str in include_path]):
+                continue
+            if exclude_path and any([bool(exclude_str in f_path) for exclude_str in exclude_path]):
+                continue
+            cnt_size += os.path.getsize(f_path)
+            cnt_iter += 1
+            logging.debug(f'遍历到文件：{f_path} [已处理{cnt_iter}|返回{cnt_iter}个：{cnt_size / 1024 / 1024:.3f}MB]')
+            if return_type == 0:
+                yield cnt, root, *os.path.splitext(fn)
+            elif return_type == 1:
+                yield cnt, root, fn
+            elif return_type == 2:
+                yield cnt, f_path
+            elif return_type == 3:
+                yield f_path
+            elif return_type == 4:
+                yield cnt, open(f_path, 'rb', **open_kwargs)
+            elif return_type == 5:
+                yield open(f_path, 'rb', **open_kwargs)
+    logging.info(f'遍历文件结束 [{cnt_size / 1024 / 1024:.3f}MB] [已处理{cnt_iter}|返回{cnt_iter}个]：{path}')

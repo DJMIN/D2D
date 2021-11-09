@@ -633,7 +633,7 @@ def api_return_deco(v):
     return _api_return_deco
 
 
-from .utils import logger_timmer
+logger_timmer = logging.getLogger('timmer')
 
 
 # 定义一个函数用来统计传入函数的运行时间

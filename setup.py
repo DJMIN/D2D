@@ -109,5 +109,8 @@ setup(
         "clickhouse_driver",
         "zip-files",
         "unrar-cffi",
+        "paramiko",
+        "pyftpdlib",
+        "pysnooper",
     ],
 )

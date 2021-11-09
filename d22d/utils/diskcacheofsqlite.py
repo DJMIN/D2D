@@ -23,7 +23,7 @@ sys.path.append(os.path.join(get_realpath(), './'))
 
 
 def str_to_int_time(string):
-    return time.mktime(time.strptime(string, '%Y-%m-%d %H:%M:%S.%f')) + 3600 * 8
+    return time.mktime(time.strptime(string, '%Y-%m-%d %H:%M:%S.%f')) - 3600 * 8
 
 
 def int_to_str_time_gmtime(timeint):
@@ -34,7 +34,7 @@ def int_to_str_time_localtime(timeint):
     return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timeint))
 
 
-def int_to_str_time1(timeint):
+def int_to_str_time_second(timeint):
     return time.strftime('%H:%M:%S', time.gmtime(timeint / 1000))
 
 

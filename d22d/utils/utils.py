@@ -1,3 +1,4 @@
+import ntpath
 import random
 import string
 import time
@@ -8,6 +9,9 @@ import traceback
 import datetime
 import shutil
 import asyncio.exceptions
+
+from sys import platform
+from shutil import copy2
 from json import JSONEncoder, dumps
 from asyncio import sleep
 from base64 import b64encode
@@ -332,6 +336,7 @@ class JSONEncoderWithBytes(JSONEncoder):
                 else:
                     raise ex
 
+
 def format_error(ex):
     return '[{}] {}\n{}'.format(type(ex), ex, traceback.format_exc())
 
@@ -444,3 +449,45 @@ def iter_path(path, exclude=None, include=None, exclude_path=None, include_path=
             elif return_type == 5:
                 yield open(f_path, 'rb', **open_kwargs)
     logging.info(f'遍历文件结束 [{cnt_size / 1024 / 1024:.3f}MB] [已处理{cnt_iter}|返回{cnt_iter}个]：{path}')
+
+
+def path_without_leaf(path):
+    result = ""
+    try:
+        head, tail = ntpath.split(path)
+        result = head
+    except Exception as inst:
+        logger.exception(f"path_without_leaf Error - {path}: {inst}")
+    return result
+
+
+# return the name of the file + extension
+def path_leaf(path):
+    result = ""
+    try:
+        head, tail = ntpath.split(path)
+        result = tail or ntpath.basename(head)
+    except Exception as inst:
+        logger.exception(f"Path_leaf Error - {path}: {inst}")
+    return result
+
+
+def create_temporary_copy(path, temp_dir, file_name):
+    if platform == "win32":
+        file_to_check = temp_dir + '\\' + file_name
+    else:
+        file_to_check = temp_dir + '/' + file_name
+    # if the file already exists, we will delete it
+    exists = os.path.isfile(file_to_check)
+    if exists:
+        os.chmod(file_to_check, 777)
+        os.remove(file_to_check)
+    temp_path = os.path.join(temp_dir, file_name)
+    copy2(path, temp_path)
+    return temp_path
+
+
+def time_stamp():
+    """returns a formatted current time/date"""
+    import time
+    return str(time.strftime("%Y_%m_%d_%H_%M_%S"))

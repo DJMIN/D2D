@@ -87,6 +87,9 @@ tomorrow3
 clickhouse_driver
 zip-files
 unrar-cffi
+paramiko
+pyftpdlib
+pysnooper
 # supervisor
 # flask_mongoengine install error need 3 pkg
 # mysql

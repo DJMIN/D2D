@@ -798,23 +798,28 @@ class XlsIbyFileD(BaseFileD):
 
     def get_count(self, index, *args, **kwargs):
         all_line = 0
-        workbook = openpyxl.load_workbook(self.gen_path_by_index(index))
-        for idx, worksheet in enumerate(workbook):
-            logging.info(f'sheet:{idx}:{worksheet.title}')
-            all_line += worksheet.max_row
+        workbook = xlrd.open_workbook(self.gen_path_by_index(index))
+        for idx, name in enumerate(workbook.sheet_names()):
+            logging.info(f'sheet:{idx}:{name}')
+            worksheet = workbook.sheet_by_index(idx)
+            all_line += worksheet.nrows
         return all_line
 
     def get_data(self, index):
-        workbook = openpyxl.load_workbook(self.gen_path_by_index(index))  # 文件路径
+        workbook = xlrd.open_workbook(self.gen_path_by_index(index))  # 文件路径
         # 获取所有sheet的名字
-        for idx, worksheet in enumerate(workbook):
-            logging.info(f'sheet:{idx}:{worksheet.title}')
-            nrows = worksheet.max_row
+        for idx, name in enumerate(workbook.sheet_names()):
+            logging.info(f'sheet:{idx}:{name}')
+            worksheet = workbook.sheet_by_index(idx)
+            nrows = worksheet.nrows
             if not nrows:
                 continue
-            keys = {i: key.value for i, key in enumerate(worksheet[1])}
-            for row in worksheet.iter_rows(min_row=2):
-                data = {keys[i]: cell.value for i, cell in enumerate(row)}
+            keys = {i: key for i, key in enumerate(worksheet.row_values(0))}
+            for line_num in range(1, nrows):
+                line = worksheet.row_values(line_num)
+                # shengri = worksheet.row(line_num)[3].ctype
+                # print(shengri)
+                data = {keys[i]: key for i, key in enumerate(line)}
                 yield data
 
     def save_data(self, index, data, *args, **kwargs):
@@ -882,6 +887,27 @@ class XlsIbyFileD(BaseFileD):
 class XlsxIbyFileD(XlsIbyFileD):
     def __init__(self, path, extension='xlsx'):
         super().__init__(path=path, extension=extension)
+
+    def get_count(self, index, *args, **kwargs):
+        all_line = 0
+        workbook = openpyxl.load_workbook(self.gen_path_by_index(index))
+        for idx, worksheet in enumerate(workbook):
+            logging.info(f'sheet:{idx}:{worksheet.title}')
+            all_line += worksheet.max_row
+        return all_line
+
+    def get_data(self, index):
+        workbook = openpyxl.load_workbook(self.gen_path_by_index(index))  # 文件路径
+        # 获取所有sheet的名字
+        for idx, worksheet in enumerate(workbook):
+            logging.info(f'sheet:{idx}:{worksheet.title}')
+            nrows = worksheet.max_row
+            if not nrows:
+                continue
+            keys = {i: key.value for i, key in enumerate(worksheet[1])}
+            for row in worksheet.iter_rows(min_row=2):
+                data = {keys[i]: cell.value for i, cell in enumerate(row)}
+                yield data
 
 
 class MongoDBD(object):

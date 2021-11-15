@@ -1,14 +1,21 @@
+import hashlib
 import ntpath
 import random
 import string
+import sys
 import time
 import os
 import logging
+
+import six
 import wrapt
 import traceback
 import datetime
 import shutil
 import asyncio.exceptions
+
+from functools import lru_cache
+from tornado.log import LogFormatter as _LogFormatter
 
 from sys import platform
 from shutil import copy2
@@ -339,6 +346,95 @@ class JSONEncoderWithBytes(JSONEncoder):
 
 def format_error(ex):
     return '[{}] {}\n{}'.format(type(ex), ex, traceback.format_exc())
+
+
+def utf8(string):
+    """
+    Make sure string is utf8 encoded bytes.
+
+    If parameter is a object, object.__str__ will been called before encode as bytes
+    """
+    if isinstance(string, six.text_type):
+        return string.encode('utf8')
+    elif isinstance(string, six.binary_type):
+        return string
+    else:
+        return six.text_type(string).encode('utf8')
+
+
+def get_md5(s):
+    md5 = hashlib.md5(utf8(s)).hexdigest()
+    return str(md5)
+
+
+def get_file_md5(file):
+    md5 = hashlib.md5()
+    f = open(file, 'rb')
+    md5.update(f.read())
+    f.close()
+    return str(md5.hexdigest()).lower()
+
+
+class LogFormatter(_LogFormatter, object):
+    def __init__(self, fmt=None, datefmt=None, color=True, *args, **kwargs):
+        datefmt = "%Y-%m-%d %H:%M:%S"
+        # '[%(threadName)s]' \
+        if fmt == 1:
+            fmt = '%(color)s[%(asctime)s][%(levelname)1.1s]%(end_color)s%(message)s'
+        self.fmt = fmt or '%(color)s[%(asctime)s][%(levelname)1.1s][%(name)s][%(filename)s:%(lineno)d:%(funcName)s()]%(end_color)s%(message)s'
+
+        super(LogFormatter, self).__init__(color=color, fmt=self.fmt, datefmt=datefmt, *args, **kwargs)
+
+    def formatTime(self, record, datefmt=None):
+        ct = self.converter(record.created)
+        if datefmt:
+            s = str(datetime.datetime.now().strftime(datefmt))
+        else:
+            t = time.strftime("%Y-%m-%d %H:%M:%S", ct)
+            s = "%s.%03d" % (t, record.msecs)
+        return s
+
+
+logger_info_where = logging.getLogger('info_where')
+logger_info_where.setLevel(logging.DEBUG)
+
+
+def set_shell_log(log, fmt=None):
+    # create a file handler
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.DEBUG)
+
+    # create a logging format
+    handler.setFormatter(LogFormatter(fmt=fmt))
+
+    # add the handlers to the logger
+    log.addHandler(handler)
+    if log.name != 'root':
+        log.propagate = False
+
+
+def log_info(*args, **kwargs):
+    # 什么函数调用了此函数
+    which_fun_call_this = sys._getframe(1).f_code.co_name  # NOQA
+    # 获取被调用函数在被调用时所处代码行数
+    line = sys._getframe().f_back.f_lineno
+    # 获取被调用函数所在模块文件名
+    file_name = sys._getframe(1).f_code.co_filename
+    logger_info_where.info(f'"{file_name}:{line}" {which_fun_call_this}()：' + ' '.join(
+        [arg.__str__() for arg in args] + [', ', ', '.join(f"{k}={v}" for k, v in kwargs.items())]))
+
+
+def active_log():
+    # set_shell_log(logger)
+    set_shell_log(logging.getLogger())
+    set_shell_log(logger_info_where, 1)
+
+
+def activate_debug_logger(level=logging.DEBUG):
+    """Global logger used when running from command line."""
+    logging.basicConfig(
+        format='(%(levelname)s) %(message)s', level=level
+    )
 
 
 def with_cur_lock():

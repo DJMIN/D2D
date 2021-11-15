@@ -20,6 +20,8 @@ def get_file_name():
 import threading
 
 get_logger_lock = threading.Lock()
+logger_task = logging.getLogger('d22d.task')
+logger_atask = logging.getLogger('d22d.async_task')
 
 
 # logging.basicConfig(
@@ -111,6 +113,7 @@ def get_logger(name=None, formatter=None):
     return _log
 
 
+get_logger_and_add_file_stream_handler = get_logger
 formatter_no_path = logging.Formatter(fmt='''[%(levelname)1.1s][%(asctime)s] %(message)s''')
 # root_logger = get_logger('root')
 # logger_timmer = get_logger('timmer', formatter=formatter_no_path)

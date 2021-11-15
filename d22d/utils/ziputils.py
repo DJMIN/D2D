@@ -28,13 +28,18 @@ def file_exists(path):
     return os.path.exists(path) and os.path.isfile(path)
 
 
-def makedirs(path):
+def makedirs(path, check_dot=True):
+    if path in ['/',  '']:
+        return
     folder_name = path.split('\\')[-1].split('/')[-1]
-    is_folder = '.' not in folder_name
-    path = os.path.realpath(path)
-    out_f_path = os.path.dirname(path)
-    if is_folder:
-        out_f_path = os.path.join(out_f_path, folder_name)
+    if check_dot:
+        is_folder = '.' not in folder_name
+        path = os.path.realpath(path)
+        out_f_path = os.path.dirname(path)
+        if is_folder:
+            out_f_path = os.path.join(out_f_path, folder_name)
+    else:
+        out_f_path = os.path.realpath(path)
     if not os.path.exists(out_f_path):
         logger.info(f'正在创建新文件夹：{out_f_path}，因为{path}需要')
         os.makedirs(out_f_path)

@@ -187,6 +187,36 @@ def test_csvtosql():
     t.run()
     
 
+def test_get_ftp_file_until_success():
+    from d22d.model.ftpmodel import FtpClientStore, time_stamp
+    from d22d.model.diskcachemodel import DiskCacheStore
+    from d22d.utils import active_log
+    active_log()  # 打开日志
+    ds = DiskCacheStore('disk_cache_ftp_index')  # 创建已传输磁盘记录节约网络开销
+    fs = FtpClientStore(
+        '123.123.123.123', 21, 'user1', '123123123',
+        location='/',  # 连接ftp后打开的工作目录
+        tmp_path='local_download_path',  # 本地的临时存放文件工作目录
+        use_tls=True, pasv=None, encoding='utf-8',
+        # socks_proxy=('192.168.0.216', 38450)
+    )
+
+    def download():
+        for data in fs.list_data():
+            print(data)
+            path = data['realpath']
+            if size := data.get("size") > 150*1024*1024:
+                if not ds.check_data(path):
+                    fs.get_data(data)
+    
+            ds.save_data(path, time_stamp())
+    
+    def upload():
+        fs.save_data("1.2.mp4",
+                     '/home/user/1.mp4')
+    download()
+
+
 if __name__ == '__main__':
     test5()
 

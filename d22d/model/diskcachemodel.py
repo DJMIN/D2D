@@ -6,6 +6,9 @@ import functools
 import asyncio
 import shutil
 
+import typing
+
+from d22d.model.midhardware import BaseStore
 from d22d.utils.decorators import flyweight
 
 logger = logging.getLogger('diskcachemodel')
@@ -82,13 +85,17 @@ class DiskCache:
         with self.cache.transact():
             return self.cache.set(*args, **kwargs)
 
-    async def set_cache_default_async(self, key, value, expire=None, read=False, tag=None, retry=False):
+    def del_cache(self, key, *args, **kwargs):
+        if key in self.cache:
+            del self.cache[key]
+
+    async def set_cache_async(self, key, value, expire=None, read=False, tag=None, retry=False):
         loop = asyncio.get_running_loop()
         future = loop.run_in_executor(None, self.cache.set, key, value, expire, read, tag, retry)
         result = await future
         return result
 
-    def list_cache_default(self, keys=None, log=True):
+    def list_cache(self, keys=None, log=True):
         for idx, k in enumerate(self.cache.iterkeys()):
             if keys and k not in keys:
                 continue
@@ -121,6 +128,46 @@ class DiskCache:
             if can_delete:
                 logger.info(f'删除文件夹：{self.path}:->{os.path.realpath(self.path)}')
                 shutil.rmtree(self.path)
+
+
+class DiskCacheStore(BaseStore):
+    def __init__(self, location='/'):
+        self.raw_location = location
+        self.location = os.path.realpath(location)
+        self.client = DiskCache(location)
+
+    def count_data(self, data_type=None, *args, **kwargs):
+        return NotImplementedError
+
+    def list_data(self, data_type=None, *args, **kwargs):
+        return self.client.list_cache()
+
+    def check_data(self, position, data_type=None, *args, **kwargs):
+        return position in self.client.cache
+
+    def get_data(self, position: typing.Union[str], data_type=None, *args, **kwargs):
+        return self.client.get_cache(position)
+
+    def save_data(self, position, data, data_type=None, *args, **kwargs):
+        return self.client.set_cache(position, data)
+
+    def delete_data(self, position, data_type=None, *args, **kwargs):
+        return self.client.del_cache(position)
+
+    def get_position(self, position, data_type=None, *args, **kwargs):
+        return os.path.join(self.location, position)
+
+    def get_data_size(self, position, data_type=None, *args, **kwargs):
+        return NotImplementedError
+
+    def check_self(self, *args, **kwargs):
+        return NotImplementedError
+
+    def save_self(self, *args, **kwargs):
+        return NotImplementedError
+
+    def free_self(self, *args, **kwargs):
+        return NotImplementedError
 
 
 if __name__ == '__main__':

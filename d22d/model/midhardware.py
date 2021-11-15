@@ -12,11 +12,15 @@ class BaseStore(metaclass=abc.ABCMeta):
         return NotImplementedError
 
     @abc.abstractmethod
+    def check_data(self, position, data_type=None, *args, **kwargs):
+        return NotImplementedError
+
+    @abc.abstractmethod
     def get_data(self, position, data_type=None, *args, **kwargs):
         return NotImplementedError
 
     @abc.abstractmethod
-    def save_data(self, position, data_type=None, *args, **kwargs):
+    def save_data(self, position, data, data_type=None, *args, **kwargs):
         return NotImplementedError
 
     @abc.abstractmethod

@@ -112,5 +112,9 @@ setup(
         "paramiko",
         "pyftpdlib",
         "pysnooper",
+        "walrus",
+        "universal_object_pool",
+        "requests-ftp",
+        "webdriver_manager",
     ],
 )

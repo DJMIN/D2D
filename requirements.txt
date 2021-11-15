@@ -90,6 +90,10 @@ unrar-cffi
 paramiko
 pyftpdlib
 pysnooper
+walrus
+universal_object_pool
+webdriver_manager
+requests-ftp
 # supervisor
 # flask_mongoengine install error need 3 pkg
 # mysql

@@ -5,4 +5,7 @@ build
 log
 venv
 project
+projectpersonal
 data
+local_download_path
+disk_cache_test

@@ -3,7 +3,7 @@ import base64
 import copy
 import random
 import uuid
-
+import collections
 import wrapt
 from flask import request as flask_request
 # noinspection PyUnresolvedReferences
@@ -96,7 +96,8 @@ def handle_exception(retry_times=0, error_detail_level=0, is_throw_error=False, 
     return _handle_exception
 
 
-def keep_circulating(time_sleep=0.001, exit_if_function_run_sucsess=False, is_display_detail_exception=True, block=True, daemon=False):
+def keep_circulating(time_sleep=0.001, exit_if_function_run_sucsess=False, is_display_detail_exception=True, block=True,
+                     daemon=False):
     """间隔一段时间，一直循环运行某个方法的装饰器
     :param time_sleep :循环的间隔时间
     :param exit_if_function_run_sucsess :如果成功了就退出循环
@@ -118,7 +119,8 @@ def keep_circulating(time_sleep=0.001, exit_if_function_run_sucsess=False, is_di
                         if exit_if_function_run_sucsess:
                             return result
                     except Exception as e:
-                        msg = func.__name__ + '   运行出错\n ' + traceback.format_exc(limit=10) if is_display_detail_exception else str(e)
+                        msg = func.__name__ + '   运行出错\n ' + traceback.format_exc(
+                            limit=10) if is_display_detail_exception else str(e)
                         keep_circulating.log.error(msg)
                     finally:
                         time.sleep(time_sleep)
@@ -450,7 +452,8 @@ class FunctionResultCacher:
                     cls.func_result_dict.clear()
 
                 key = cls._make_arguments_to_key(args, kwargs)
-                if (fun, key) in cls.func_result_dict and time.time() - cls.func_result_dict[(fun, key)][1] < cache_time:
+                if (fun, key) in cls.func_result_dict and time.time() - cls.func_result_dict[(fun, key)][
+                    1] < cache_time:
                     return cls.func_result_dict[(fun, key)][0]
                 else:
                     cls.logger.debug('函数 [{}] 此次不能使用缓存'.format(fun.__name__))
@@ -621,7 +624,8 @@ def api_return_deco(v):
                 "data": data,
                 "message": "SUCCESS"}, ensure_ascii=False)
         except Exception as e:
-            except_str0 = f'请求路径：{flask_request.path}  请求参数：{json.dumps(flask_request.values.to_dict())} ,出错了 {type(e)} {e} {traceback.format_exc()}'.replace('\n', '<br>')
+            except_str0 = f'请求路径：{flask_request.path}  请求参数：{json.dumps(flask_request.values.to_dict())} ,出错了 {type(e)} {e} {traceback.format_exc()}'.replace(
+                '\n', '<br>')
             flask_error_logger.exception(except_str0)
             exception_str_encode = base64.b64encode(except_str0.encode()).decode().replace('=', '').strip()
             message = except_str0 if env == 'test' else f'''{"".join(random.sample("abcdefghijklmnopqrstABCDEFGHIJKLMNOPQRST", 4))}{exception_str_encode}'''
@@ -657,8 +661,8 @@ def timmer():
         res = func(*args, **kwargs)
         end_time = time.time()
         resl = '[{_long_}耗时][{_time_:.4f}s] 函数:[{_func_:20s}] 入参:{_kwargs_:50s}{_args_:50s} 结果为: {_res_:50s}'.format(
-                    _long_='长' if end_time - start_time > 1 else '', _func_=func_name, _time_=(end_time - start_time),
-                    _args_=str(args), _kwargs_=str(kwargs), _res_=str(res))
+            _long_='长' if end_time - start_time > 1 else '', _func_=func_name, _time_=(end_time - start_time),
+            _args_=str(args), _kwargs_=str(kwargs), _res_=str(res))
         try:
             logger_timmer.info(resl)
         except Exception as e:
@@ -689,9 +693,110 @@ def timmer_async():
         res = await func(*args, **kwargs)
         end_time = time.time()
         logger_timmer.info(
-            '[{_long_}耗时][{_time_:.4f}s] 函数:[{_func_:20s}] 入参:{_kwargs_}{_args_} 结果为: {_res_:50s}'.format(
+            '[{_long_}耗时][{_time_:06.4f}s] 函数:[{_func_:20s}] 入参:{_kwargs_}{_args_} 结果为: {_res_:50s}'.format(
                 _long_='长' if end_time - start_time > 1 else '', _func_=func_name, _time_=(end_time - start_time),
                 _args_=str(args), _kwargs_=str(kwargs), _res_=str(res)))
+        # 返回值为函数的运行结果
+        return res
+
+    # 返回值为函数
+    return deco
+
+
+now_pid = os.getpid()
+start_time = time.time()
+cnt_hz = collections.defaultdict(int)
+last_print_hz = collections.defaultdict(int)
+max_print_hz = collections.defaultdict(int)
+
+
+def print_hz(
+        name='',
+        per_cnt_print=2000,
+        per_second_print=1,
+        print_func=logger_timmer.info
+):
+    """
+    统计函数每秒执行频次, 装饰器本身耗时约0.000001秒/次, （0.001毫秒 1微秒 1000纳秒）/次，100W次/s
+    :param  name 函数名留空为自动读取函数名
+    :param  per_cnt_print 每2000次执行成功打印一次
+    :param  per_second_print 每1秒打印一次
+    :param  print_func 打印函数
+    """
+    global start_time
+    global last_print_hz
+    global cnt_hz
+    global now_pid
+
+    # 传入的参数是一个函数
+    @wrapt.decorator
+    def deco(func, instance, args, kwargs):
+        # 本应传入运行函数的各种参数
+        # print('\n函数：{_funcname_}开始运行：'.format(_funcname_=func.__name__))
+        # 调用代运行的函数，并将各种原本的参数传入
+        # if instance:
+        #     res = func(instance, *args, **kwargs)
+        # else:
+        res = func(*args, **kwargs)
+        cnt = cnt_hz[name] + 1
+        cnt_hz[name] = cnt
+        time_now = time.time()
+        if (last_print_hz[name] + per_second_print) < time_now or not cnt % per_cnt_print:
+            last_print_hz[name] = int(time_now)
+            use_time = time_now - start_time
+            hz_now = cnt / use_time
+            bb = max_print_hz[name] = max([max_print_hz[name], hz_now])
+            print_func('[PID:{_now_pid_:09}] {_time_:.4f}秒 执行 {_cnt_} 次函数:[{_func_:20s}]，'
+                       '平均/峰值 [{_cnt_per_:.2f}/{_max_cnt_:.2f}] 次/秒'.format(
+                            _now_pid_=now_pid, _func_=name, _time_=use_time,
+                            _cnt_=cnt, _cnt_per_=hz_now, _max_cnt_=bb))
+        # 返回值为函数的运行结果
+        return res
+
+    # 返回值为函数
+    return deco
+
+
+def print_hz_async(
+        name='',
+        per_cnt_print=2000,
+        per_second_print=1,
+        print_func=logger_timmer.info
+):
+    """
+    统计函数每秒执行频次, 装饰器本身耗时约0.000001秒/次, （0.001毫秒 1微秒 1000纳秒）/次，100W次/s
+    :param  name 函数名留空为自动读取函数名
+    :param  per_cnt_print 每2000次执行成功打印一次
+    :param  per_second_print 每1秒打印一次
+    :param  print_func 打印函数
+    """
+    global start_time
+    global last_print_hz
+    global cnt_hz
+    global now_pid
+
+    # 传入的参数是一个函数
+    @wrapt.decorator
+    async def deco(func, instance, args, kwargs):
+        # 本应传入运行函数的各种参数
+        # print('\n函数：{_funcname_}开始运行：'.format(_funcname_=func.__name__))
+        # 调用代运行的函数，并将各种原本的参数传入
+        # if instance:
+        #     res = func(instance, *args, **kwargs)
+        # else:
+        res = func(*args, **kwargs)
+        cnt = cnt_hz[name] + 1
+        cnt_hz[name] = cnt
+        time_now = time.time()
+        if (last_print_hz[name] + per_second_print) < time_now or not cnt % per_cnt_print:
+            last_print_hz[name] = int(time_now)
+            use_time = time_now - start_time
+            hz_now = cnt / use_time
+            bb = max_print_hz[name] = max([max_print_hz[name], hz_now])
+            print_func('[PID:{_now_pid_:09}] {_time_:.4f}秒 执行 {_cnt_} 次函数:[{_func_:20s}]，'
+                       '平均/峰值 [{_cnt_per_:.2f}/{_max_cnt_:.2f}] 次/秒'.format(
+                            _now_pid_=now_pid, _func_=name, _time_=use_time,
+                            _cnt_=cnt, _cnt_per_=hz_now, _max_cnt_=bb))
         # 返回值为函数的运行结果
         return res
 

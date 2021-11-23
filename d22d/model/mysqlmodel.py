@@ -1,6 +1,8 @@
 import pymysql
 import threading
 import wrapt
+import psycopg2
+import psycopg2.extras
 from functools import update_wrapper, wraps
 from dbutils.persistent_db import PersistentDB
 from dbutils.pooled_db import PooledDB
@@ -15,44 +17,44 @@ from d22d.utils.decorators import timmer, flyweight, where_is_it_called, print_h
 log = logging.getLogger(__name__)
 
 
-# 享元模式（Flyweight Pattern）主要用于减少创建对象的数量，以减少内存占用和提高性能。这种类型的设计模式属于结构型模式，它提供了减少对象数量从而改善应用所需的对象结构的方式。
-@flyweight
-class MYSQLController(object):
-    def __init__(self, host, port, user, passwd, database):
+class BaseController(object):
+
+    def __init__(self, host, port, user, password, database):
         self.host = host
         self.port = port
         self.user = user
-        self.passwd = passwd
+        self.password = password
         self.database = database
-        self.mysql_conf = dict(
-            # dbpai=pymysql,
-            maxusage=1000,
-            creator=pymysql,
-            host=host,
-            user=user,
-            passwd=passwd,
-            database=database if database else None,
-            port=port,
-            charset='utf8mb4',
-            use_unicode=True,
-            autocommit=False,
-            # 流式、字典访问
-            cursorclass=pymysql.cursors.SSDictCursor)
         self.last_res = None
+        self._conf = {}
         self._conn = None
         self._cur = None
-        self.persist = PooledDB(**self.mysql_conf)
+        self._persist = None
+
+    @property
+    def persist(self):
+        if not self._persist:
+            self._persist = PooledDB(**self._conf)
+        return self._persist
+
+    @staticmethod
+    def get_conn(persist):
+        return persist.connection()
 
     @property
     def conn(self):
         if not self._conn or getattr(self._conn, "_closed", True):
-            self._conn = self.persist.connection()
+            self._conn = self.get_conn(self.persist)
         return self._conn
+
+    @staticmethod
+    def get_cur(conn):
+        return conn.cursor()
 
     @property
     def cur(self):
         if not self._cur or getattr(self._cur, "_closed", True):
-            self._cur = self.conn.cursor()
+            self._cur = self.get_cur(self.conn)
         return self._cur
 
     def execute(self, sql, params=None, return_type=2, res_windows=10000, commit=False):
@@ -66,8 +68,8 @@ class MYSQLController(object):
         :return:
         """
         # conn = self.conn
-        conn = self.persist.connection()
-        cur = conn.cursor()
+        conn = self.get_conn(self.persist)
+        cur = self.get_cur(conn)
         cur.execute(sql, params)
         if return_type == 1:
             resl = {}
@@ -106,8 +108,8 @@ class MYSQLController(object):
         :return:
         """
         # conn = self.conn
-        conn = self.persist.connection()
-        cur = conn.cursor()
+        conn = self.get_conn(self.persist)
+        cur = self.get_cur(conn)
         cur.execute(sql, params)
         while res := cur.fetchmany(res_windows):
             for d in res:
@@ -195,6 +197,59 @@ class MYSQLController(object):
     get_some = partial(sql_select, return_type=2)
 
 
+# 享元模式（Flyweight Pattern）主要用于减少创建对象的数量，以减少内存占用和提高性能。这种类型的设计模式属于结构型模式，它提供了减少对象数量从而改善应用所需的对象结构的方式。
+@flyweight
+class MYSQLController(BaseController):
+    def __init__(self, host, port, user, password, database):
+        super().__init__(host, port, user, password, database)
+        self._conf = dict(
+            # dbpai=pymysql,
+            maxusage=1000,
+            creator=pymysql,
+            host=host,
+            user=user,
+            passwd=password,
+            database=database if database else None,
+            port=port,
+            charset='utf8mb4',
+            use_unicode=True,
+            autocommit=False,
+            # 流式、字典访问
+            cursorclass=pymysql.cursors.SSDictCursor)
+
+
+@flyweight
+class PGController(BaseController):
+    def __init__(self, host, port, user, password, database):
+        super().__init__(host, port, user, password, database)
+        self._conf = dict(
+            maxusage=1000,
+            creator=psycopg2,
+            host=host,
+            user=user,
+            password=password,
+            database=database if database else None,
+            port=port,
+        )
+
+    @staticmethod
+    def get_cur(conn):
+        return conn.cursor(
+                name=str(time.time()), cursor_factory=psycopg2.extras.RealDictCursor, scrollable=True, withhold=True)
+
+    def show_databases(self):
+        return list(d.get('datname') for d in self.execute_auto('select datname from pg_database;', return_type=3))
+
+    def show_tables(self, database=None):
+        return list(d.get('table_name') for d in self.execute_auto(
+            # f"SELECT table_name FROM information_schema.tables WHERE table_schema='{database or self.database}';", return_type=3))
+            f"SELECT table_name FROM information_schema.tables WHERE table_catalog='{database or self.database}';", return_type=3))
+
+    def describe_table_name(self, table_name):
+        return list(d.get('column_name') for d in self.execute_auto(
+            f"SELECT column_name FROM information_schema.columns WHERE table_name='{table_name}';", return_type=3))
+
+
 def format_filed(filed):
     return ', '.join(f'{k}' for k in filed)
 
@@ -235,4 +290,3 @@ def gen_update_sql_safe(table_name, kvs):
           f'ON DUPLICATE KEY UPDATE {",".join("`%s`=%%s" % k for k in kvs.keys())}'
 
     return sql, values * 2
-

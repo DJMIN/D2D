@@ -910,6 +910,7 @@ class FtpController:
 
         self._download_file_to_some_where(
             ftp_file_name, local_path, file_size, status_command, check_ftp_file_same=check_ftp_file_same)
+        return local_path
 
     @with_ftp_lock()
     def _download_file_to_some_where(

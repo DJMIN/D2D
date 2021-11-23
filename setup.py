@@ -116,5 +116,10 @@ setup(
         "universal_object_pool",
         "requests-ftp",
         "webdriver_manager",
+        "auto_run_on_remote",
+        "pika==1.2.0",
+        "http-parser",
+        "aiohttp",
+        "nb_http_client",
     ],
 )

@@ -703,7 +703,6 @@ def timmer_async():
     return deco
 
 
-now_pid = os.getpid()
 start_time = time.time()
 cnt_hz = collections.defaultdict(int)
 last_print_hz = collections.defaultdict(int)
@@ -726,7 +725,6 @@ def print_hz(
     global start_time
     global last_print_hz
     global cnt_hz
-    global now_pid
 
     # 传入的参数是一个函数
     @wrapt.decorator
@@ -748,7 +746,7 @@ def print_hz(
             bb = max_print_hz[name] = max([max_print_hz[name], hz_now])
             print_func('[PID:{_now_pid_:09}] {_time_:.4f}秒 执行 {_cnt_} 次函数:[{_func_:20s}]，'
                        '平均/峰值 [{_cnt_per_:.2f}/{_max_cnt_:.2f}] 次/秒'.format(
-                            _now_pid_=now_pid, _func_=name, _time_=use_time,
+                            _now_pid_=os.getpid(), _func_=name, _time_=use_time,
                             _cnt_=cnt, _cnt_per_=hz_now, _max_cnt_=bb))
         # 返回值为函数的运行结果
         return res
@@ -784,7 +782,7 @@ def print_hz_async(
         # if instance:
         #     res = func(instance, *args, **kwargs)
         # else:
-        res = func(*args, **kwargs)
+        res = await func(*args, **kwargs)
         cnt = cnt_hz[name] + 1
         cnt_hz[name] = cnt
         time_now = time.time()

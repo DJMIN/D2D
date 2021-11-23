@@ -34,6 +34,7 @@ from ..ziputils import un_zip
 from clickhouse_driver import connect as clickhouse_connect
 from threading import Lock
 from threading import local as threading_local
+from collections import defaultdict
 
 
 def get_realpath():
@@ -1350,6 +1351,9 @@ class ClickHouseD(BaseClient):
         else:
             return self.execute_iter(sql=f'select * from {sub_sql}', *args, **kwargs)
 
+    def get_indexes(self):
+        return list(t[0] for t in self.execute(sql=f'show tables from {self.database};'))
+
 
 class ListD:
     def __init__(self, index='default', data=None):
@@ -1364,8 +1368,14 @@ class ListD:
     def get_data(self, index='default', *args, **kwargs):
         return self.data[index]
 
-    def get_dict(self, index='default', pkey='', *args, **kwargs):
+    def get_dict_kv(self, index='default', pkey='', *args, **kwargs):
         return {item.get(pkey, ''): item for item in self.data[index]}
+
+    def get_dict_kv_set(self, index='default', pkey='', *args, **kwargs):
+        res = defaultdict(set)
+        for item in self.data[index]:
+            res[item.get(pkey, '')].add(item)
+        return res
 
     def save_data(self, index='default', data=[], *args, **kwargs):
         self.data[index].extend(data)

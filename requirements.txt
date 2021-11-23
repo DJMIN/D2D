@@ -94,6 +94,11 @@ walrus
 universal_object_pool
 webdriver_manager
 requests-ftp
+auto_run_on_remote
+pika==1.2.0
+http-parser
+aiohttp
+nb_http_client
 # supervisor
 # flask_mongoengine install error need 3 pkg
 # mysql

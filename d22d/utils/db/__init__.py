@@ -1249,8 +1249,8 @@ class ClickHouseD(BaseClient):
             if isinstance(data[k], datetime.date):
                 if data[k] < ClickHouseD.min_datetime or data[k] > ClickHouseD.max_datetime:
                     data[k] = ClickHouseD.min_datetime
-                if getattr(data[k], 'read', None):
-                    data[k] = data[k].read()
+            if getattr(data[k], 'read', None):
+                data[k] = data[k].read()
         return data
 
     def data_types_check(self, data, cols_types):

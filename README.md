@@ -83,39 +83,76 @@ sudo python3.8 get-pip.py
 ```python
 import d22d
 from d22d import (
-ElasticSearchD, MySqlD, CsvD, SqlFileD, JsonListD,
- XlsIbyFileD, XlsxIbyFileD, MongoDBD, 
+ ElasticSearchD, MySqlD, CsvD, SqlFileD, JsonListD,
+ XlsIbyFileD, XlsxIbyFileD, MongoDBD, ListD,
  Migration, Migration2DB, open_log
 )
 
+
 def test1():
+    """
+    Migration 可以全量迁移单表数据，不指定表名可以全量迁移整个数据库
+    
+    mysql es等均用流式游标读取的方式，避免程序迁移过程中占用过多内存，导致内存爆炸
+    将mysql://localhost:3306/test的user表全量迁移到mysql://192.168.0.100:3306/test的user表，若mysql://192.168.0.100:3306/test没有user表，会自动建立数据表。
+    """
     open_log()
     t = Migration(
         database_from=MySqlD(host='localhost', port=3306, database='test',
-                                user='root', passwd='root'),
+                                user='root', passwd='root'),  # 数据来源数据库
         database_to=MySqlD(host='192.168.0.100', port=3306, database='test',
-                                user='root', passwd='root'),
-        table_from='user',
-        table_to='user'
+                                user='root', passwd='root'),  # 数据去向数据库
+        table_from='user',  # 数据来源数据库表名
+        table_to='user'  # 数据去向数据库表名
     )
     t.run()
 
 def test2():
+    """
+    Migration2DB 依据两个表各自主键合并两个表，生成一个新表
+    将./data/userinfo.xlsx和./data/user.xlsx文件，依据user_id列和userid列合并，自动建立./data/user_info_new.xlsx文件。
+    
+    ./data/userinfo.xlsx:
+    user_id sex
+    a123    男
+    b2333   女
+    
+    +
+    
+    ./data/user.xlsx
+    userid addr
+    a123   china
+    c222   地球
+
+    =
+
+    ./data/user_info_new.xlsx
+    user_id userid sex  addr
+    a123    a123   男   china
+    b2333          女
+    c222                地球
+    """
+
     t = Migration2DB(
-        database_from1=XlsxIbyFileD(path='./data'),
-        database_from2=XlsxIbyFileD(path='./data'),
-        table_from1=f'''userinfo''',
-        table_from2=f'''user''',
-        migration_key1=f'''user_id''',
-        migration_key2=f'''userid''',
-        database_to=XlsxIbyFileD(path='./data'),
-        table_to='user_info_new',
+        database_from1=XlsxIbyFileD(path='./data'),  # 数据来源数据库1
+        database_from2=XlsxIbyFileD(path='./data'),  # 数据来源数据库2
+        table_from1=f'''userinfo''',     # 数据来源数据库表名1
+        table_from2=f'''user''',         # 数据来源数据库表名2
+        migration_key1=f'''user_id''',   # 数据来源数据库表1主键
+        migration_key2=f'''userid''',    # 数据来源数据库表2主键
+        database_to=XlsxIbyFileD(path='./data'),    # 数据去向数据库
+        table_to='user_info_new',    # 数据去向数据库表名
         # size=10000,
     )
     t.run()
 
 
 def test3():
+    """
+    同上test1 Migration 可以全量迁移单表数据，不指定表名可以全量迁移整个数据库
+    
+    将mysql://localhost:3306/test的user1表全量迁移到es数据库的user1 index，若es没有user1 index，会自动建立index。
+    """
     t = Migration(
         database_from=MySqlD(host='localhost', port=3306, database='test',
                                    user='root', passwd='root'),
@@ -127,6 +164,11 @@ def test3():
 
 
 def test4():
+    """
+    同上test1 Migration 可以全量迁移单表数据，不指定表名可以全量迁移整个数据库
+    
+    将mysql://localhost:3306/test的user1表全量保存到本地csv文件./data/user1。
+    """
     t = Migration(
         database_from=MySqlD(host='localhost', port=3306, database='test',
                              user='root', passwd='root'),
@@ -138,20 +180,84 @@ def test4():
 
 
 def test5():
+    """
+    同上test1 Migration 可以全量迁移单表数据，不指定表名可以全量迁移整个数据库
+    
+    将本地csv文件./data/user1全量保存到本地csv文件./data/user2。同时修改部分字段
+    
+    ./data/user1.csv
+    user_id sex
+    a111    1
+    
+    ./data/user2.csv
+    uuid sex time       tag
+    a111 1   1638410972 xs
+
+    """
+    import time
     t = Migration(
         database_from=CsvD(path='./data'),
         database_to=CsvD(path='./data1'),
         table_from='user1',
         table_to='user2'
     )
+    def self_format(data):
+        data['uuid'] = data.pop('user_id')
+        data['time'] = int(time.time())
+        data['tag'] = 'xs'
+        return data
+    t.format_data = self_format
     t.run()
 
 
 def test6():
     """
+    同上test1 Migration 可以全量迁移单表数据，不指定表名可以全量迁移整个数据库
+    
+    在程序内存中构造数据ListD user1全量保存到mysql。同时修改部分字段
+    
+    ListD('user1').data = {'user1':
+        [
+            {"user_id":"a111", "sex":1},
+            {"user_id":"a112", "sex":2},
+        ]
+    }
+
+    mysql user表
+    user_id sex time       tag
+    a111    1   1638410972 xs
+    a112    2   1638410973 xs
+    """
+    import time
+    ld = ListD('user1')
+    ld.data = {'user1':
+        [
+            {"user_id":"a111", "sex":1},
+            {"user_id":"a112", "sex":2},
+        ]
+    }
+    t = Migration(
+        database_from=ld,
+        database_to=MySqlD(host='localhost', port=3306, database='test',
+                             user='root', passwd='root'),
+        table_from='user1',
+        table_to='user'
+    )
+    def self_format(data):
+        data['uuid'] = data.pop('user_id')
+        data['time'] = int(time.time())
+        data['tag'] = 'xs'
+        return data
+    t.format_data = self_format
+    t.run()
+
+
+def test7():
+    """
     独立使用 CsvD 样例
     Using CsvD independently
-
+    
+    如果不想使用Migration 或者Migration2DB，也可以单独使用CsvD、MysqlD等利用同样的函数名函数save_data、get_data快速操作各种地方的数据
     """
     data = CsvD(path='./data').get_data('user')
     file = CsvD(path='./data1')
@@ -174,6 +280,10 @@ def test6():
 
 
 def test_csvtosql():
+    """
+    将csv数据文件变成.sql文件，同时改变insert语句生成格式为 ON DUPLICATE KEY UPDATE 
+    """
+
     t = Migration(
         database_from=CsvD(path='/home/user/Desktop'),
         database_to=SqlFileD(path='../data1', compress=True),
@@ -188,6 +298,9 @@ def test_csvtosql():
     
 
 def test_get_ftp_file_until_success():
+    """
+    从ftp下载文件，不成功会一直自动重试登录客户端再重试断点续传，并且保存已经下载的文件路径，缓存在本地磁盘，做记录，避免重复下载
+    """
     from d22d.model.ftpmodel import FtpClientStore, time_stamp
     from d22d.model.diskcachemodel import DiskCacheStore
     from d22d.utils import active_log
@@ -205,7 +318,7 @@ def test_get_ftp_file_until_success():
         for data in fs.list_data():
             print(data)
             path = data['realpath']
-            if size := data.get("size") > 150*1024*1024:
+            if size := data.get("size") > 150*1024*1024:    # 文件大于150MB才从FTP下载
                 if not ds.check_data(path):
                     fs.get_data(data)
     
@@ -248,12 +361,14 @@ table_to： index名或table名或文件名
     <th>Table来源</th>
     <th>Table名</th>
     </tr>
-    <tr> <td>MySQL</td>            <td>tables</td>            <td>tablename</td> </tr>
-    <tr> <td>ElasticSearch</td>    <td>indexes</td>           <td>index name</td> </tr>
-    <tr> <td>MongoDB</td>          <td>collections</td>       <td>collection name</td> </tr>
-    <tr> <td>Excel</td>            <td>file all sheet</td>              <td>filename</td> </tr>
-    <tr> <td>.json</td>            <td>file</td>              <td>filename</td> </tr>
-    <tr> <td>.csv</td>             <td>file</td>              <td>filename</td> </tr>
+    <tr> <td>MySQL</td>              <td>tables</td>            <td>tablename</td> </tr>
+    <tr> <td>ElasticSearch</td>      <td>indexes</td>           <td>index name</td> </tr>
+    <tr> <td>MongoDB</td>            <td>collections</td>       <td>collection name</td> </tr>
+    <tr> <td>Excel</td>              <td>file all sheet</td>    <td>filename</td> </tr>
+    <tr> <td>.json</td>              <td>file</td>              <td>filename</td> </tr>
+    <tr> <td>.csv</td>               <td>file</td>              <td>filename</td> </tr>
+    <tr> <td>.sql</td>               <td>file</td>              <td>tablename in file</td> </tr>
+    <tr> <td>内存中,in mem,ListD</td> <td>dict</td>              <td>dict key</td> </tr>
 </table>
 
 * 在入库mongodb时，限于mongodb数据库机制，无法高效自动去重，现在为了追求mongodb入库效率,

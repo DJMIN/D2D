@@ -36,7 +36,7 @@ rednose
 eventlet
 func_timeout
 simplejson
-PyHive
+PyHive>=0.6.3
 cryptg
 msgpack
 concurrent-log-handler
@@ -69,14 +69,14 @@ flask_mongoengine
 celery
 flask_sqlalchemy
 setuptools
-pycryptodome
+pycryptodome>=3.11.0
 wrapt
 twine
 six
 requests>=2.22.0
 elasticsearch_dsl>=6.1
 PyMySQL>=1.0.2
-mysql-connector-python>=8.0.6
+mysql-connector-python>=8.0.27
 redis>=3.2.1
 DBUtils>=2.0
 elasticsearch>=6.1.1
@@ -88,17 +88,22 @@ clickhouse_driver
 zip-files
 unrar-cffi
 paramiko
-pyftpdlib
+pyftpdlib>=1.5.5
 pysnooper
 walrus
 universal_object_pool
 webdriver_manager
 requests-ftp
 auto_run_on_remote
-pika==1.2.0
+pika>=1.2.0
 http-parser
 aiohttp
 nb_http_client
+PySnooper>=1.0.0
+decorator>=5.1.0
+cssselect>=1.1.0
+pyquery>=1.4.3
+future>=0.18.1
 # supervisor
 # flask_mongoengine install error need 3 pkg
 # mysql

@@ -430,7 +430,7 @@ class EsModel(object):
                 result = elasticsearch.helpers.bulk(self.es, data, request_timeout=150, chunk_size=batch_size,
                                                     raise_on_error=False, raise_on_exception=False)
                 succeed = result[0]
-                if result[1]:
+                if len(result) >1 and result[1]:
                     logging.error(result)
                 if succeed == total:
                     return succeed
@@ -551,8 +551,8 @@ class ClientPyMySQL:
         """
 
         import pymysql
-        from DBUtils import SteadyDB
-        from DBUtils import PooledDB
+       
+        from dbutils.pooled_db import PooledDB
         self.dbc = PooledDB.PooledDB(
             creator=pymysql,
             host=host, user=user,

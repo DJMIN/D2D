@@ -16,6 +16,7 @@ import datetime
 import sqlite3
 import pandas as pd
 import copy
+import re
 import gridfs
 import abc
 from bson import ObjectId
@@ -28,13 +29,21 @@ from .myutils import BaseDB
 from .myutils import ClientPyMySQL
 from .myutils import ExcelWriter
 from .sqlfileextra import SqlExtractor, match_insert, RANDOM_STR
-from ..utils import format_error, with_cur_lock, gen_pass, run_task_auto_retry, remove_folder, iter_path
-from ..rarutils import un_rar
-from ..ziputils import un_zip
+from ..utils import format_error, with_cur_lock, gen_pass, run_task_auto_retry
 from clickhouse_driver import connect as clickhouse_connect
 from threading import Lock
 from threading import local as threading_local
-from collections import defaultdict
+
+
+def get_table_name_from_sql(sql):
+    pattern = {
+    'select' : r"(?!')*\bfrom\b\s+\b(?P<table_name>\w+)\b\s+\b(?P<table_sn>\w+)\b(?!')*",
+    'insert' : r"(?!')*\binsert\b\s+\binto\b\s+\b(?P<table_name>\w+)\b\s+\b(?P<table_sn>\w+)\b(?!')*",
+    'update' : r"(?!')*\bupdate\b\s+\b(?P<table_name>\w+)\b\s+\b(?P<table_sn>\w+)(?!')+",
+    }
+    res = re.compile(pattern[sql.lower().strip().split(' ')[0]], re.S | re.IGNORECASE).search(sql)
+    if res:
+        return res['table_name']
 
 
 def get_realpath():
@@ -422,8 +431,7 @@ class MySqlD(ClientPyMySQL, ABC):
     def create_index(self, index, data, pks='id'):
         if self.tables_ddl:
             sql = self.tables_ddl[index]
-            self._execute(sql)
-            self.end_transaction()
+            self._execute(sql, commit=True)
         else:
             # sql = """SET NAMES utf8mb4;"""
             # sql += """SET FOREIGN_KEY_CHECKS = 0;"""
@@ -462,8 +470,7 @@ class MySqlD(ClientPyMySQL, ABC):
 
             sql += """ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;"""
             print(sql)
-            self._execute(sql)
-            self.end_transaction()
+            self._execute(sql, commit=True)
 
 
 def get_line_num_fast(filename):
@@ -1171,6 +1178,17 @@ class BaseClient(ABC):
                 yield r
             result = cur.fetchmany(1000)
 
+    @with_cur_lock()
+    def execute_iter_d(self, cur, sql, parms=None, *args, **kwargs):
+        print(sql)
+        cur.set_stream_results(True, 1000)
+        cur.execute(sql, parms, *args, **kwargs)
+        result = cur.fetchmany(1000)
+        while result:
+            for r in result:
+                yield dict(zip(cur._columns, r))
+            result = cur.fetchmany(1000)
+
 
 class ClickHouseD(BaseClient):
     min_datetime = datetime.datetime(1971, 1, 1, 0, 0, 0)
@@ -1182,8 +1200,16 @@ class ClickHouseD(BaseClient):
         self.host = host
         self.port = port
         self.user = user
+        self._cur = None
+
         self.password = password
         self.database = database
+
+    @property
+    def cur(self):
+        if not self._cur:
+            self._cur = self.conn.cursor()
+        return self._cur
 
     def __repr__(self):
         return f'ClickHouse:{self.host}'
@@ -1212,8 +1238,10 @@ class ClickHouseD(BaseClient):
     def cols_type(self, table_name):
         return {kv[0]: kv[1] for kv in self.show_table_struct(table_name)}
 
-    def get_count(self, table_name):
-        return self.execute(f'select count(*) from {table_name}')[0][0]
+    def get_count(self, index, *args, **kwargs):
+        if index.lower().strip().startswith('select '):
+            index = f'({index.strip()})'
+        return self.execute(f'select count(0) as c from  {index} as taSDFEWVempTABlesdfecH')[0][0]
 
     @classmethod
     def gen_insert_sql_csv(cls, table_name, data):
@@ -1249,8 +1277,8 @@ class ClickHouseD(BaseClient):
             if isinstance(data[k], datetime.date):
                 if data[k] < ClickHouseD.min_datetime or data[k] > ClickHouseD.max_datetime:
                     data[k] = ClickHouseD.min_datetime
-            if getattr(data[k], 'read', None):
-                data[k] = data[k].read()
+                if getattr(data[k], 'read', None):
+                    data[k] = data[k].read()
         return data
 
     def data_types_check(self, data, cols_types):
@@ -1345,14 +1373,17 @@ class ClickHouseD(BaseClient):
             return self.execute(f'show create table {index}')[0][0].replace('\n', ' ')
 
     def get_data(self, index, *args, **kwargs):
-        sub_sql = f"{index} {kwargs['condition']}" if 'condition' in kwargs else index
+        sub_sql = f"{index} {kwargs.pop('condition')}" if 'condition' in kwargs else index
         if index.lower().strip().startswith('select '):
-            return self.execute_iter(sql=f'{sub_sql}', *args, **kwargs)
+            return self.execute_iter_d(sql=f'{sub_sql}', *args, **kwargs)
         else:
-            return self.execute_iter(sql=f'select * from {sub_sql}', *args, **kwargs)
+            return self.execute_iter_d(sql=f'select * from {sub_sql}', *args, **kwargs)
 
     def get_indexes(self):
-        return list(t[0] for t in self.execute(sql=f'show tables from {self.database};'))
+        return [i[0] for i in self.execute(f'show tables from {self.database}')]
+
+    def get_cols_type(self, index):
+        return dict({row[0]: row[1] for row in self.show_table_struct(index)})
 
 
 class ListD:
@@ -1388,7 +1419,6 @@ class ListD:
 
 
 class OracleD(BaseClient):
-
     def __init__(self, user, password, dsn, database):
         super().__init__()
         self.user = user
@@ -1422,7 +1452,7 @@ class OracleD(BaseClient):
         return result
 
     def get_column_name1(self, index):
-        sql = f"select column_name from all_tab_cols where table_name='{index.upper()}'"
+        sql = f"select column_name from all_tab_cols where table_name='{index.upper()}' and owner='{self.databases}'"
         return [c[0] for c in self.execute(sql)]
 
     def get_count(self, index, *args, **kwargs):
@@ -1478,4 +1508,8 @@ class OracleD(BaseClient):
         """
         查看表结构
         """
-        return self.execute(f'desc {table_name}')
+        sql = f"select column_name,data_type from all_tab_cols where table_name='{table_name}' and owner='{self.databases}'"
+        return self.execute(sql)
+
+    def get_cols_type(self, index):
+        return dict({row[0]: row[1] for row in self.show_table_struct(index)})

@@ -129,5 +129,6 @@ setup(
         "pyftpdlib>=1.5.5",
         "pycryptodome>=3.11.0",
         "nb_http_client",
+        "clipboard",
     ],
 )

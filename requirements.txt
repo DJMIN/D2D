@@ -104,6 +104,7 @@ decorator>=5.1.0
 cssselect>=1.1.0
 pyquery>=1.4.3
 future>=0.18.1
+clipboard
 # supervisor
 # flask_mongoengine install error need 3 pkg
 # mysql

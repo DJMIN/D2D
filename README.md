@@ -1,5 +1,8 @@
 # d22d
 # D22[twaɪs]D 
+ETL with simple code and easy code，
+用非常简单的代码进行数据ETL
+
 Migrating form DataBase to DataBase by 2 lines code, The fastest migration tool for all database by scheduled tasks with
 2 lines of code.    
 (.csv .sql .json .xls .xlsx mysql ElasticSearch excel mongodb sqlite redis...)    
@@ -11,6 +14,27 @@ Can automatically build a table based on data
 Has detailed logging    
 拥有详细的日志记录
 
+ETL是将业务系统的数据经过抽取（Extract）、清洗转换（Transform）之后加载（Load）到数据仓库的过程，
+目的是将企业中的分散、零乱、标准不统一的数据整合到一起，为企业的决策提供分析依据。
+
+
+#### 抽取（Extract）
+MySqlD(host='192.168.0.100', port=3306, database='test', user='root', passwd='root')
+
+#### 清洗转换（Transform）
+
+#### 加载（Load）
+
+```python
+from d22d import (MySqlD, Migration)
+Migration(
+    database_from=MySqlD(host='localhost', port=3306, database='test',user='root', passwd='root'),  # 数据来源数据库
+    database_to=MySqlD(host='192.168.0.100', port=3306, database='test', user='root', passwd='root'),  # 数据去向数据库
+    table_from='user',  # 数据来源数据库表名
+    table_to='user'  # 数据去向数据库表名
+).run()
+
+```
 
 ## Install 如何安装
 * 以下说明完全只针对安装源码调试的用户， 

@@ -186,9 +186,15 @@ def get_realpath():
 
 
 class EsModel(object):
-    def __init__(self, hosts, timeout=120):
+    def __init__(self, hosts, username=None, password=None, timeout=120):
         self.hosts = hosts
-        self._es_client = elasticsearch.Elasticsearch(hosts=self.hosts, timeout=timeout)
+        self.username = username
+        self.password = password
+        if all([username, password]):
+            http_auth = (self.username, self.password)
+        else:
+            http_auth = None
+        self._es_client = elasticsearch.Elasticsearch(hosts=self.hosts, http_auth=http_auth, timeout=timeout)
 
     def get_info(self):
         return self.es.info()
@@ -424,6 +430,8 @@ class EsModel(object):
                 result = elasticsearch.helpers.bulk(self.es, data, request_timeout=150, chunk_size=batch_size,
                                                     raise_on_error=False, raise_on_exception=False)
                 succeed = result[0]
+                if result[1]:
+                    logging.error(result)
                 if succeed == total:
                     return succeed
             except Exception as e:
@@ -543,8 +551,9 @@ class ClientPyMySQL:
         """
 
         import pymysql
-        from dbutils.steady_db import connect
-        self.dbc = connect(
+        from DBUtils import SteadyDB
+        from DBUtils import PooledDB
+        self.dbc = PooledDB.PooledDB(
             creator=pymysql,
             host=host, user=user,
             passwd=passwd,
@@ -561,10 +570,10 @@ class ClientPyMySQL:
         try:
             # if self.dbc.unread_result:
             #     self.dbc.get_rows()
-            return self.dbc.cursor()
+            return self.dbc.connection().cursor()
         except (mysql_connector.OperationalError, mysql_connector.InterfaceError):
-            self.dbc.ping(reconnect=True)
-            return self.dbc.cursor()
+            self.dbc.connection().ping(reconnect=True)
+            return self.dbc.connection().cursor()
 
     # def begin_transaction(self):
     #     self.dbc.begin()
@@ -609,14 +618,16 @@ class ClientPyMySQL:
     #             else:
     #                 raise
 
-    def _execute(self, sql, values=None):
+    def _execute(self, sql, values=None, commit=False, **kwargs):
         print(sql)
-        dbcur = self.dbc.cursor()
+        dbcur = self.dbc.connection().cursor()
         try:
             if values:
                 dbcur.execute(sql, values or [])
             else:
                 dbcur.execute(sql)
+            if commit:
+                dbcur.execute('COMMIT;')
 
             def _fetch(_dbcur):
                 result = _dbcur.fetchmany(1000)
@@ -638,9 +649,7 @@ class ClientPyMySQL:
 
     def save_into_db(self, sql, datas, batch_size=1000):
         for i in range((len(datas) + batch_size - 1) // batch_size):
-            self.begin_transaction()
             self._executemany(sql, datas[i * batch_size:(i + 1) * batch_size])
-            self.end_transaction()
 
     def _executemany(self, sql_query, params):
         with warnings.catch_warnings():
@@ -684,7 +693,10 @@ class ClientPyMySQL:
             self, tablename, data,
             mode='INSERT IGNORE',
             # mode='REPLACE',
-            batch_size=5000, *args, **kwargs):
+            batch_size=5000,
+            *args,
+            **kwargs
+    ):
         if not data:
             return
 
@@ -921,9 +933,9 @@ class BaseDB(object):
         for i in range(size):
             # self.logger.info("{} {}/{}".format(mode, batch_size * (i + 1), len(data)))
             # self._executemany(sql_query, [list(d[k] for k in values) for d in data[i * batch_size:(i + 1) * batch_size]])
-            self.begin_transaction()
+
             self._executemany(sql_query, [list(d[k] for k in values) for d in data[i * batch_size:(i + 1) * batch_size]])
-            self.end_transaction()
+
         return len(data)
 
     def _update(self, _tablename=None, _where="1=0", _where_values=None, **values):

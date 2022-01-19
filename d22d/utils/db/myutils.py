@@ -553,7 +553,7 @@ class ClientPyMySQL:
         import pymysql
        
         from dbutils.pooled_db import PooledDB
-        self.dbc = PooledDB.PooledDB(
+        self.dbc = PooledDB(
             creator=pymysql,
             host=host, user=user,
             passwd=passwd,

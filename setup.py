@@ -100,7 +100,7 @@ setup(
         "requests>=2.22.0",
         "elasticsearch_dsl>=6.1",
         "PyMySQL>=0.9.3",
-        "mmysql-connector-python>=8.0.27",
+        "mysql-connector-python>=8.0.27",
         "redis>=3.2.1",
         "DBUtils>=2.0",
         "elasticsearch>=6.1.1",
@@ -130,5 +130,7 @@ setup(
         "pycryptodome>=3.11.0",
         "nb_http_client",
         "clipboard",
+        "sqlalchemy>=1.4.22",
+        "sqlalchemy-utils>=0.37.9",
     ],
 )

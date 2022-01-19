@@ -105,6 +105,8 @@ cssselect>=1.1.0
 pyquery>=1.4.3
 future>=0.18.1
 clipboard
+sqlalchemy>=1.4.22
+sqlalchemy-utils>=0.37.9
 # supervisor
 # flask_mongoengine install error need 3 pkg
 # mysql

@@ -567,7 +567,7 @@ class CsvD(BaseFileD):
     def __file_w(self):
         for k, v in self._file_w.items():
             if k not in self.___file_w:
-                self.___file_w[k] = csv.writer(v)
+                self.___file_w[k] = csv.DictWriter(v, fieldnames=[])
         return self.___file_w
 
     # @classmethod
@@ -586,13 +586,14 @@ class CsvD(BaseFileD):
 
     def save_data(self, index, data, *args, **kwargs):
         # self._file_w[index].writelines((self.split.join(f'{v.__repr__()}' for v in d.values()) + '\n') for d in data)
-        self.__file_w[index].writerows([v for v in d.values()] for d in data)
+        self.__file_w[index].writerows([d for d in data])
         self._file_w[index].flush()
 
     def create_index(self, index, data, pks='id'):
         super(self.__class__, self).create_index(index, data)
         # self._file_w[index].writerow((self.split.join(f'"{v.__repr__()[1:-1]}"' for v in data.keys()) + '\n'))
-        self.__file_w[index].writerow([v for v in data.keys()])
+        self.__file_w[index].fieldnames = [v for v in data.keys()]
+        self.__file_w[index].writeheader()
         self._file_w[index].flush()
 
 
@@ -924,10 +925,10 @@ class MongoDBD(object):
         self.batch_size = batch_size
         self.database = database
         self.client = pymongo.MongoClient(self.hosts)
-        self.db_list = self.client.list_database_names()
+        # self.db_list = self.client.list_database_names()
         self.db = self.client[self.database]
         # self.db.authenticate(user, password)
-        self.collection_list = self.db.list_collection_names()
+        self.collection_list = self.db.collection_names()
         self.gridfs = gridfs.GridFS(self.db)
 
     def __repr__(self):
@@ -946,7 +947,7 @@ class MongoDBD(object):
         return res.inserted_ids
 
     def get_indexes(self):
-        return list(self.db.list_collection_names())
+        return list(self.db.collection_names())
 
     def get_count(self, index, *args, **kwargs):
         return self.db[index].find().count()

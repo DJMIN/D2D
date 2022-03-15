@@ -1,9 +1,9 @@
+wheel
 python-logstash
 gunicorn
 kafka-python
 chardet
 baostock
-flask_socketio
 async-timeout
 thrift
 pyquery
@@ -19,28 +19,22 @@ nose
 zipp
 pymongo
 psycopg2-binary
-Flask_login
 logstash_formatter
 PyMySQL
 urllib3
-Flask_Cache
 python-logstash-async
 gevent
 xlsxwriter
 mongoengine
 phone
-Flask_Cors
 click
-Flask
 rednose
 eventlet
 func_timeout
 simplejson
-PyHive>=0.6.3
-cryptg
+PyHive
 msgpack
 concurrent-log-handler
-Flask-Migrate
 watchdog
 docker
 requests[socks]
@@ -53,73 +47,54 @@ python-dateutil
 pytest
 numpy
 SQLAlchemy
-Flask_SQLAlchemy
-Flask_Script
 rarfile
 bcrypt
 greenlet
 xlrd
-PySocks
 demjson
 tushare
 psutil
 arrow
 tornado
-flask_mongoengine
-celery
-flask_sqlalchemy
 setuptools
-pycryptodome>=3.11.0
+pycryptodome
 wrapt
 twine
-six
-requests>=2.22.0
-elasticsearch_dsl>=6.1
-PyMySQL>=1.0.2
-mysql-connector-python>=8.0.27
-redis>=3.2.1
-DBUtils>=2.0
-elasticsearch>=6.1.1
-wheel
 sqlparse
+six
+orjson
+requests~=2.22.0
+elasticsearch_dsl>=6.1
+PyMySQL>=0.9.3
+mysql-connector-python~=8.0.27
+redis~=3.2.1
+DBUtils~=2.0
+elasticsearch>=6.1.1
 diskcache
 tomorrow3
 clickhouse_driver
 zip-files
-unrar-cffi
+# unrar-cffi
 paramiko
-pyftpdlib>=1.5.5
+pyftpdlib
 pysnooper
 walrus
 universal_object_pool
-webdriver_manager
 requests-ftp
+webdriver_manager
 auto_run_on_remote
-pika>=1.2.0
-http-parser
+pika~=1.2.0
+# http-parser
 aiohttp
-nb_http_client
 PySnooper>=1.0.0
 decorator>=5.1.0
 cssselect>=1.1.0
 pyquery>=1.4.3
 future>=0.18.1
+PyHive>=0.6.3
+pyftpdlib>=1.5.5
+pycryptodome>=3.11.0
+nb_http_client
 clipboard
 sqlalchemy>=1.4.22
 sqlalchemy-utils>=0.37.9
-# supervisor
-# flask_mongoengine install error need 3 pkg
-# mysql
-# pymongo==3.2  # pymongo.errors.ConfigurationError: Server at 127.0.0.1:27017 reports wire version 0, but this version of PyMongo requires at least 2 (MongoDB 2.6).
-# blob utf8 decode error
-# sasl
-# gevent
-# pymongo
-# mysql-connector
-# pycrypto
-# DBUtils==1.3 No module named 'DBUtils'
-# mysqlclient
-# thrift-sasl
-# mysql-connector>=2.1.7
-# requests==2.2.1
-# requests

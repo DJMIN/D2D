@@ -1,15 +1,38 @@
 #!/usr/bin/env python
 # coding=utf-8
-
-from setuptools import setup, find_packages
+import codecs
+import os
+import sys
 from version import __VERSION__
+
+try:
+    from setuptools import setup, find_packages
+except:
+    from distutils.core import setup
+
+    find_packages = lambda x: []
+
+# def read(fname):
+#     return codecs.open(os.path.join(os.path.dirname(__file__), fname)).read()
+#
+#
+# long_des = read("README.md")
+
+with open('README.md', encoding='utf-8') as f:
+    long_text = f.read()
+
+with open('requirements.txt', encoding='utf-8') as f:
+    install_requires = [
+        line for line in f.read().strip().splitlines()
+        if line.startswith('#')]
+
 setup(
     name='d22d',
     version=__VERSION__,
     description=(
         'Migrating form DataBase to DataBase by 2 lines code'
     ),
-    long_description=open('README.md').read(),
+    long_description=long_text,
     long_description_content_type="text/markdown",
     author='readerror',
     author_email='readerror@sina.com',
@@ -18,119 +41,18 @@ setup(
     license='GPL License',
     packages=find_packages(),
     platforms=["all"],
+    zip_safe=True,
+    package_data={'': ['*']},
     url='https://github.com/DJMIN/D2D',
     python_requires='>=3.6',
-    install_requires=[
-        "python-logstash",
-        "gunicorn",
-        "kafka-python",
-        "chardet",
-        "baostock",
-        "flask_socketio",
-        "async-timeout",
-        "thrift",
-        "pyquery",
-        "dnspython",
-        "Flask_Migrate",
-        "coverage",
-        "bs4",
-        "itsdangerous",
-        "pysocks",
-        "Werkzeug",
-        "pathlib2",
-        "nose",
-        "zipp",
-        "pymongo",
-        "psycopg2-binary",
-        "Flask_login",
-        "logstash_formatter",
-        "PyMySQL",
-        "urllib3",
-        "Flask_Cache",
-        "python-logstash-async",
-        "gevent",
-        "xlsxwriter",
-        "mongoengine",
-        "phone",
-        "Flask_Cors",
-        "click",
-        "Flask",
-        "rednose",
-        "eventlet",
-        "func_timeout",
-        "simplejson",
-        "PyHive",
-        "cryptg",
-        "msgpack",
-        "concurrent-log-handler",
-        "Flask-Migrate",
-        "watchdog",
-        "docker",
-        "requests[socks]",
-        "openpyxl",
-        "pymysql",
-        "flask",
-        "lxml",
-        "pandas",
-        "python-dateutil",
-        "pytest",
-        "numpy",
-        "SQLAlchemy",
-        "Flask_SQLAlchemy",
-        "Flask_Script",
-        "rarfile",
-        "bcrypt",
-        "greenlet",
-        "xlrd",
-        "PySocks",
-        "demjson",
-        "tushare",
-        "psutil",
-        "arrow",
-        "tornado",
-        "flask_mongoengine",
-        "celery",
-        "flask_sqlalchemy",
-        "setuptools",
-        "pycryptodome",
-        "wrapt",
-        "twine",
-        "sqlparse",
-        "six",
-        "requests>=2.22.0",
-        "elasticsearch_dsl>=6.1",
-        "PyMySQL>=0.9.3",
-        "mysql-connector-python>=8.0.27",
-        "redis>=3.2.1",
-        "DBUtils>=2.0",
-        "elasticsearch>=6.1.1",
-        "diskcache",
-        "tomorrow3",
-        "clickhouse_driver",
-        "zip-files",
-        "unrar-cffi",
-        "paramiko",
-        "pyftpdlib",
-        "pysnooper",
-        "walrus",
-        "universal_object_pool",
-        "requests-ftp",
-        "webdriver_manager",
-        "auto_run_on_remote",
-        "pika>=1.2.0",
-        "http-parser",
-        "aiohttp",
-        "PySnooper>=1.0.0",
-        "decorator>=5.1.0",
-        "cssselect>=1.1.0",
-        "pyquery>=1.4.3",
-        "future>=0.18.1",
-        "PyHive>=0.6.3",
-        "pyftpdlib>=1.5.5",
-        "pycryptodome>=3.11.0",
-        "nb_http_client",
-        "clipboard",
-        "sqlalchemy>=1.4.22",
-        "sqlalchemy-utils>=0.37.9",
-    ],
+    install_requires=install_requires,
+    extras_require={
+        'OracleD': [
+            "cx_Oracle==7.2.3",
+            # 'oracle数据库：11.2.0.2.0 - 64bit',
+            # 'instantclient：11.2.0.4.0 - 64bit'
+        ],
+        'http': ["http-parser"],
+        'rar': ["unrar-cffi"],
+    }
 )

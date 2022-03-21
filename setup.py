@@ -24,7 +24,7 @@ with open('README.md', encoding='utf-8') as f:
 with open('requirements.txt', encoding='utf-8') as f:
     install_requires = [
         line for line in f.read().strip().splitlines()
-        if line.startswith('#')]
+        if not line.startswith('#')]
 
 setup(
     name='d22d',

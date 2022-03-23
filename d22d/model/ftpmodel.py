@@ -325,7 +325,7 @@ class FtpController:
         self.hidden_files = False
 
         # Variable to store the platform the server is running on
-        self.server_platform = 'Linux'
+        self.server_platform = 'Linux' if sys.platform != 'win32' else sys.platform
         self.lock = Lock()
         self.ftp_lock = Lock()
         self.ftp = None
@@ -636,6 +636,22 @@ class FtpController:
         # Close file
         file_to_up.close()
 
+    @staticmethod
+    def format_realpath(path):
+        if sys.platform == 'win32':
+            res = str(os.path.realpath(path)).split(':', 1)[-1].replace('\\', '/')
+        else:
+            res = os.path.realpath(path)
+        return res
+
+    @staticmethod
+    def format_path(path):
+        if sys.platform == 'win32':
+            res = str(path).replace('\\', '/')
+        else:
+            res = path
+        return res
+
     def upload_file_to_some_where(
             self, local_path, remote_folder, remote_filename='', status_command=log_info, check_ftp_file_same=True):
         # TODO BytesIO类型local_path
@@ -647,7 +663,7 @@ class FtpController:
             remote_folder, remote_filename = os.path.split(remote_folder)
 
         if not remote_folder.startswith('/'):
-            remote_folder = os.path.realpath(os.path.join(self.work_dir_now, remote_folder))
+            remote_folder = self.format_realpath(os.path.join(self.work_dir_now, remote_folder))
         remote_path = os.path.join(remote_folder, remote_filename)
         old_path = self.work_dir_now
         if remote_folder:
@@ -845,9 +861,9 @@ class FtpController:
         old_path = self.work_dir_now
         if ftp_file_path:
             if ftp_file_path.startswith('/'):
-                ftp_file_path = os.path.realpath(ftp_file_path)
+                ftp_file_path = self.format_realpath(ftp_file_path)
             else:
-                ftp_file_path = os.path.realpath(os.path.join(self.work_dir_now, ftp_file_path))
+                ftp_file_path = self.format_realpath(os.path.join(self.work_dir_now, ftp_file_path))
             self.cwd_recode_path(ftp_file_path)
         else:
             raise FileNotFoundError(ftp_file_path)
@@ -1128,10 +1144,10 @@ class FtpController:
     def cwd_recode_path(self, path):
         self.ftp.cwd(path)
         if path.startswith('/'):
-            self.work_dir_now = os.path.realpath(path)
+            self.work_dir_now = self.format_realpath(path)
         else:
             old_path = self.work_dir_now
-            self.work_dir_now = os.path.realpath(os.path.join(old_path, path))
+            self.work_dir_now = self.format_realpath(os.path.join(old_path, path))
 
     def moveFTPFiles(self, fileToUpload, remoteDirectoryPath):
         self.lock.acquire(True)
@@ -1181,7 +1197,9 @@ class FtpClientStore(midhardware.BaseStore):
             p_host, p_port = socks_proxy.split(':')
         elif isinstance(socks_proxy, tuple):
             p_host, p_port = socks_proxy
-            socks_proxy = dict(proxytype=socks.PROXY_TYPE_SOCKS5, rdns=True, addr=p_host, port=int(p_port))
+        else:
+            p_host, p_port = None, None
+        socks_proxy = dict(proxytype=socks.PROXY_TYPE_SOCKS5, rdns=True, addr=p_host, port=int(p_port))
         self.client = FtpController(host, port, username, password, use_tls, pasv, encoding, socks_proxy)
         self.client.connect_until_success()
         self.location = location
@@ -1202,7 +1220,7 @@ class FtpClientStore(midhardware.BaseStore):
                     'attribs': file_attribs,
                     'modified': date_modified,
                     'size': int(size),
-                    "realpath": os.path.realpath(os.path.join(root, fn))
+                    "realpath": self.client.format_realpath(os.path.join(root, fn))
                 }
 
     def check_data(self, position: typing.Union[str, dict, FtpClientFileStore], data_type=None, *args, **kwargs):
@@ -1219,7 +1237,7 @@ class FtpClientStore(midhardware.BaseStore):
         file_name = None
         file_size = 0
         if isinstance(position, str):
-            file_name = os.path.join(self.location, position)
+            file_name = self.client.format_path(os.path.join(self.location, position))
         elif isinstance(position, dict):
             file_name = position['realpath']
             file_size = position['size']

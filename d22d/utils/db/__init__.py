@@ -596,6 +596,43 @@ class CsvD(BaseFileD):
         self.__file_w[index].writeheader()
         self._file_w[index].flush()
 
+class TxtD(BaseFileD):
+    def __init__(self, path, split=',', extension='txt', encoding='utf8'):
+        super().__init__(path, extension, encoding, newline='')
+        self.split = split
+        self._file_w = dict()
+        self.___file_w = dict()
+
+    def get_count(self, index, *args, **kwargs):
+        count = get_line_num_fast(self.gen_path_by_index(index))
+        if count:
+            count -= 1
+        return count
+
+    @property
+    def __file_w(self):
+        for k, v in self._file_w.items():
+            if k not in self.___file_w:
+                self.___file_w[k] = v
+        return self.___file_w
+
+
+    def get_data(self, index, fieldnames=None, restkey=None, restval=None,
+                 dialect="excel", **kwargs):
+        with open(self.gen_path_by_index(index), 'r', encoding=self.encoding) as f:
+            keys = list(k.strip().replace("'", '').replace('"', '') for k in f.readline().strip().split(self.split))
+            for line in f:
+                values = list(v.strip().replace("'", '').replace('"', '') for v in line.strip().split(self.split))
+                yield {keys[idx]: v for idx, v in enumerate(values)}
+
+    def save_data(self, index, data, *args, **kwargs):
+        self._file_w[index].writelines((self.split.join(v.__repr__() for v in d.values()) + '\n') for d in data)
+        self._file_w[index].flush()
+
+    def create_index(self, index, data, pks='id'):
+        super(self.__class__, self).create_index(index, data)
+        self._file_w[index].writelines((self.split.join(v.__repr__() for v in data.keys()) + '\n'))
+        self._file_w[index].flush()
 
 class ZipD(object):
     def __init__(self, path, get_file_data_func=None, fieldnames=None, extension='zip', encoding='utf8'):

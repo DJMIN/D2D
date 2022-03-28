@@ -1193,13 +1193,15 @@ class FtpClientStore(midhardware.BaseStore):
     def __init__(self, host, port, username, password, location='/', tmp_path='ftp_data_tmp',
                  use_tls=False, pasv=None, encoding='utf-8', socks_proxy: typing.Union[str, tuple, dict] = None,
                  download_check_ftp_file_same=False, upload_check_ftp_file_same=True):
-        if isinstance(socks_proxy, str):
-            p_host, p_port = socks_proxy.split(':')
-        elif isinstance(socks_proxy, tuple):
-            p_host, p_port = socks_proxy
-        else:
-            p_host, p_port = None, None
-        socks_proxy = dict(proxytype=socks.PROXY_TYPE_SOCKS5, rdns=True, addr=p_host, port=int(p_port))
+        if socks_proxy:
+            if isinstance(socks_proxy, str):
+                p_host, p_port = socks_proxy.split(':')
+            elif isinstance(socks_proxy, tuple):
+                p_host, p_port = socks_proxy
+            else:
+                p_host, p_port = socks_proxy.get('p_host'), socks_proxy.get('p_port')
+            socks_proxy = dict(proxytype=socks.PROXY_TYPE_SOCKS5, rdns=True, addr=p_host, port=int(p_port))
+
         self.client = FtpController(host, port, username, password, use_tls, pasv, encoding, socks_proxy)
         self.client.connect_until_success()
         self.location = location

@@ -430,7 +430,8 @@ table_to： index名或table名或文件名
 # upload pypi
 
 ```shell
-git config http.proxy socks5://127.0.0.1:24120
+git config --global http.proxy socks5://127.0.0.1:24049
+git config https.proxy socks5://127.0.0.1:24049
 python setup.py sdist bdist_wheel upload
 twine upload dist/*
 ```

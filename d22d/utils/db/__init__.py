@@ -32,6 +32,7 @@ from .sqlfileextra import SqlExtractor, match_insert, RANDOM_STR
 from ..utils import format_error, with_cur_lock, gen_pass, run_task_auto_retry
 from clickhouse_driver import connect as clickhouse_connect
 from threading import Lock
+from collections import defaultdict
 from threading import local as threading_local
 
 
@@ -634,6 +635,7 @@ class TxtD(BaseFileD):
         self._file_w[index].writelines((self.split.join(v.__repr__() for v in data.keys()) + '\n'))
         self._file_w[index].flush()
 
+
 class ZipD(object):
     def __init__(self, path, get_file_data_func=None, fieldnames=None, extension='zip', encoding='utf8'):
         self.path = path
@@ -651,6 +653,8 @@ class ZipD(object):
         return 1
 
     def get_data(self, index, **kwargs):
+        from ..ziputils import un_zip, iter_path, remove_folder
+
         uz_path = None
         try:
             uz_path = un_zip(os.path.join(self.path, f'{index}.{self.extension}'), **kwargs)
@@ -675,6 +679,8 @@ class RarD(ZipD):
             fieldnames=fieldnames or [], extension=extension, encoding=encoding)
 
     def get_data(self, index, **kwargs):
+        from ..rarutils import un_zip, iter_path, remove_folder
+
         ur_path = None
         try:
             ur_path = un_rar(os.path.join(self.path, f'{index}.{self.extension}'), **kwargs)

@@ -10,6 +10,8 @@ from .utils import set_shell_log, active_log
 from .db import *
 from .decorators import print_hz_async, print_hz
 from .logger import LogFormatter
+from .fetch_to_requests import gen_from_clipboard, fetch_to_requests
+from . import f2r
 
 
 def get_realpath():

@@ -567,7 +567,7 @@ class CsvD(BaseFileD):
     def __file_w(self):
         for k, v in self._file_w.items():
             if k not in self.___file_w:
-                self.___file_w[k] = csv.writer(v)
+                self.___file_w[k] = csv.DictWriter(v, fieldnames=[])
         return self.___file_w
 
     # @classmethod
@@ -586,15 +586,53 @@ class CsvD(BaseFileD):
 
     def save_data(self, index, data, *args, **kwargs):
         # self._file_w[index].writelines((self.split.join(f'{v.__repr__()}' for v in d.values()) + '\n') for d in data)
-        self.__file_w[index].writerows([v for v in d.values()] for d in data)
+        self.__file_w[index].writerows([d for d in data])
         self._file_w[index].flush()
 
     def create_index(self, index, data, pks='id'):
         super(self.__class__, self).create_index(index, data)
         # self._file_w[index].writerow((self.split.join(f'"{v.__repr__()[1:-1]}"' for v in data.keys()) + '\n'))
-        self.__file_w[index].writerow([v for v in data.keys()])
+        self.__file_w[index].fieldnames = [v for v in data.keys()]
+        self.__file_w[index].writeheader()
         self._file_w[index].flush()
 
+class TxtD(BaseFileD):
+    def __init__(self, path, split=',', extension='txt', encoding='utf8'):
+        super().__init__(path, extension, encoding, newline='')
+        self.split = split
+        self._file_w = dict()
+        self.___file_w = dict()
+
+    def get_count(self, index, *args, **kwargs):
+        count = get_line_num_fast(self.gen_path_by_index(index))
+        if count:
+            count -= 1
+        return count
+
+    @property
+    def __file_w(self):
+        for k, v in self._file_w.items():
+            if k not in self.___file_w:
+                self.___file_w[k] = v
+        return self.___file_w
+
+
+    def get_data(self, index, fieldnames=None, restkey=None, restval=None,
+                 dialect="excel", **kwargs):
+        with open(self.gen_path_by_index(index), 'r', encoding=self.encoding) as f:
+            keys = list(k.strip().replace("'", '').replace('"', '') for k in f.readline().strip().split(self.split))
+            for line in f:
+                values = list(v.strip().replace("'", '').replace('"', '') for v in line.strip().split(self.split))
+                yield {keys[idx]: v for idx, v in enumerate(values)}
+
+    def save_data(self, index, data, *args, **kwargs):
+        self._file_w[index].writelines((self.split.join(v.__repr__() for v in d.values()) + '\n') for d in data)
+        self._file_w[index].flush()
+
+    def create_index(self, index, data, pks='id'):
+        super(self.__class__, self).create_index(index, data)
+        self._file_w[index].writelines((self.split.join(v.__repr__() for v in data.keys()) + '\n'))
+        self._file_w[index].flush()
 
 class ZipD(object):
     def __init__(self, path, get_file_data_func=None, fieldnames=None, extension='zip', encoding='utf8'):
@@ -776,8 +814,9 @@ class SqlFileD(BaseFileD):
 
 
 class JsonListD(BaseFileD):
-    def __init__(self, path, extension='json', encoding='utf8'):
+    def __init__(self, path, extension='json', encoding='utf8', ensure_ascii=False):
         super().__init__(path, extension, encoding)
+        self.ensure_ascii = ensure_ascii
 
     def get_data(self, index):
         with open(self.gen_path_by_index(index), 'r', encoding=self.encoding) as f:
@@ -785,7 +824,7 @@ class JsonListD(BaseFileD):
                 yield json.loads(line.strip())
 
     def save_data(self, index, data, *args, **kwargs):
-        self._file_w[index].writelines((json.dumps(d) + '\n') for d in data)
+        self._file_w[index].writelines((json.dumps(d, ensure_ascii=self.ensure_ascii) + '\n') for d in data)
         self._file_w[index].flush()
 
 
@@ -941,10 +980,10 @@ class MongoDBD(object):
         self.batch_size = batch_size
         self.database = database
         self.client = pymongo.MongoClient(self.hosts)
-        self.db_list = self.client.list_database_names()
+        # self.db_list = self.client.list_database_names()
         self.db = self.client[self.database]
         # self.db.authenticate(user, password)
-        self.collection_list = self.db.list_collection_names()
+        self.collection_list = self.db.collection_names()
         self.gridfs = gridfs.GridFS(self.db)
 
     def __repr__(self):
@@ -963,7 +1002,7 @@ class MongoDBD(object):
         return res.inserted_ids
 
     def get_indexes(self):
-        return list(self.db.list_collection_names())
+        return list(self.db.collection_names())
 
     def get_count(self, index, *args, **kwargs):
         return self.db[index].find().count()

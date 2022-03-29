@@ -430,7 +430,7 @@ class EsModel(object):
                 result = elasticsearch.helpers.bulk(self.es, data, request_timeout=150, chunk_size=batch_size,
                                                     raise_on_error=False, raise_on_exception=False)
                 succeed = result[0]
-                if result[1]:
+                if len(result) >1 and result[1]:
                     logging.error(result)
                 if succeed == total:
                     return succeed
@@ -548,12 +548,19 @@ class ClientPyMySQL:
 
         典型的应用场景如下：在某个维持了某些数据库连接的程序运行时重启了数据库，
         或在某个防火墙隔离的网络中访问远程数据库时重启了防火墙。
+
+        mincached:链接池中空闲链接的初始数量
+        maxcached:链接池中空闲链接的最大数量
+        maxshared:共享链接的最大数量
+        maxconnections:建立链接池的最大数量
+        blocking:超过最大链接数量时候的表现，为True等待链接数量降低，为false直接报错处理
+        maxusage:单个链接的最大重复使用次数
         """
 
         import pymysql
-        from DBUtils import SteadyDB
-        from DBUtils import PooledDB
-        self.dbc = PooledDB.PooledDB(
+       
+        from dbutils.pooled_db import PooledDB
+        self.dbc = PooledDB(
             creator=pymysql,
             host=host, user=user,
             passwd=passwd,
@@ -562,18 +569,33 @@ class ClientPyMySQL:
             charset='utf8mb4',
             use_unicode=True,
             autocommit=False,
+            mincached=1, maxcached=10,
+            maxshared=10, maxconnections=10, blocking=False,
+            maxusage=None, setsession=None, reset=True,
+            failures=None, ping=1,
             # 流式、字典访问
             cursorclass=pymysql.cursors.SSDictCursor)
+        self.__pool = self.dbc
+        self._conn = None
+        self._cursor = None
+        self.__get_conn()
+
+    def __get_conn(self):
+        self._conn = self.__pool.connection()
+        self._cursor = self._conn.cursor()
 
     @property
     def dbcur(self):
         try:
             # if self.dbc.unread_result:
             #     self.dbc.get_rows()
-            return self.dbc.connection().cursor()
+            if not self._cursor:
+                self.__get_conn()
+            return self._cursor
         except (mysql_connector.OperationalError, mysql_connector.InterfaceError):
-            self.dbc.connection().ping(reconnect=True)
-            return self.dbc.connection().cursor()
+            self.__get_conn()
+            self._cursor.ping(reconnect=True)
+            return self._cursor
 
     # def begin_transaction(self):
     #     self.dbc.begin()
@@ -591,9 +613,9 @@ class ClientPyMySQL:
         return self.dbcur.execute("rollback;")
 
     def fetch(self, dbcur):
-        result = dbcur.fetchone()
+        result = self.dbcur.fetchone()
         while result is not None:
-            result = dbcur.fetchone()
+            result = self.dbcur.fetchone()
 
     # def _execute1(self, sql, values=None):
     #     print(sql)
@@ -620,23 +642,22 @@ class ClientPyMySQL:
 
     def _execute(self, sql, values=None, commit=False, **kwargs):
         print(sql)
-        dbcur = self.dbc.connection().cursor()
         try:
             if values:
-                dbcur.execute(sql, values or [])
+                self.dbcur.execute(sql, values or [])
             else:
-                dbcur.execute(sql)
+                self.dbcur.execute(sql)
             if commit:
-                dbcur.execute('COMMIT;')
+                self.dbcur.execute('COMMIT;')
 
-            def _fetch(_dbcur):
-                result = _dbcur.fetchmany(1000)
+            def _fetch():
+                result =  self.dbcur.fetchmany(1000)
                 while result:
                     # print(result)
                     for r in result:
                         yield r
-                    result = _dbcur.fetchmany(1000)
-            return dbcur.lastrowid, _fetch(dbcur)
+                    result =  self.dbcur.fetchmany(1000)
+            return self.dbcur.lastrowid, _fetch()
         except mysql_connector.DatabaseError as ex:
             if ex.errno == 1205:
                 logging.critical(traceback.format_exc())
@@ -654,12 +675,11 @@ class ClientPyMySQL:
     def _executemany(self, sql_query, params):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            dbcur = self.dbcur
             # logging.debug("<sql: %s>" % sql_query)
-            dbcur.execute("BE" + "GIN;")
-            dbcur.executemany(sql_query, params)
-            dbcur.execute("COMMIT;")
-            return dbcur.fetchall()
+            self.dbcur.execute("BE" + "GIN;")
+            self.dbcur.executemany(sql_query, params)
+            self.dbcur.execute("COMMIT;")
+            return self.dbcur.fetchall()
 
     def _get_insert_sql(self, _mode=INSERT_NORMAL, _tablename=None, **values):
         if _mode not in self.INSERT_MODES:
@@ -684,10 +704,10 @@ class ClientPyMySQL:
         sql, _, _ = self._get_insert_sql(_mode, _tablename, **values)
 
         if values:
-            dbcur = self._execute(sql, list(itervalues(values)))
+            self.dbcur = self._execute(sql, list(itervalues(values)))
         else:
-            dbcur = self._execute(sql)
-        return dbcur.lastrowid
+            self.dbcur = self._execute(sql)
+        return self.dbcur.lastrowid
 
     def insert_many_with_dict_list(
             self, tablename, data,

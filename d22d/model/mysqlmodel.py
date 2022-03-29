@@ -204,7 +204,7 @@ class MYSQLController(BaseController):
         super().__init__(host, port, user, password, database)
         self._conf = dict(
             # dbpai=pymysql,
-            maxusage=1000,
+            maxusage=1000,  # 一个连接最多复用次数，None为无限
             creator=pymysql,
             host=host,
             user=user,
@@ -215,6 +215,11 @@ class MYSQLController(BaseController):
             use_unicode=True,
             autocommit=False,
             # 流式、字典访问
+            mincached=1,  # 初始化时，最小闲置数
+            maxcached=10,  # 最大闲置数
+            blocking=True,  # 无可用连接，等待
+            # maxconnections=10, #创建连接池的最大数量
+            # maxshared=20, #共享连接允许最大数量
             cursorclass=pymysql.cursors.SSDictCursor)
 
 
@@ -225,6 +230,11 @@ class PGController(BaseController):
         self._conf = dict(
             maxusage=1000,
             creator=psycopg2,
+            maxconnections=255,  # 连接池允许的最大连接数，0 和 None 表示不限制连接数
+            mincached=1,  # 初始化时，链接池中至少创建的空闲的链接，0 表示不创建
+            maxcached=32,  # 链接池中最多闲置的链接，0 和 None 不限制
+            blocking=True,  # 连接池中如果没有可用连接后，是否阻塞等待。True，等待；False，不等待然后报错
+            setsession=[],  # 开始会话前执行的命令列表
             host=host,
             user=user,
             password=password,

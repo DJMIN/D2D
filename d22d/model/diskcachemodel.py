@@ -67,7 +67,7 @@ class DiskCache:
 
     def __init__(self, path=PATH_REL_DATA):
         self.path = path
-        self.cache = self.init_cache_default(path)
+        self.cache = self.init_cache_default(path).stats()
 
     @staticmethod
     def init_cache_default(path):
@@ -137,7 +137,7 @@ class DiskCacheStore(BaseStore):
         self.client = DiskCache(location)
 
     def count_data(self, data_type=None, *args, **kwargs):
-        return NotImplementedError
+        return self.client.cache.__len__()
 
     def list_data(self, data_type=None, *args, **kwargs):
         return self.client.list_cache()

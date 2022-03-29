@@ -1,23 +1,44 @@
 # d22d
 # D22[twaɪs]D 
 
+```
+from mysql .csv .sql .json .xls .xlsx ElasticSearch excel mongodb sqlite redis clickhouse 
+to mysql .csv .sql .json .xls .xlsx ElasticSearch excel mongodb sqlite redis clickhouse 
+```
+
+用非常简单的代码进行数据ETL     
+可以全量迁移上亿以上单表数据    
+或者依据两个表各自主键合并两个表，生成一个新表    
+2行代码即可使用最高效的方式最快的速度在各种数据库中流式处理迁移单表数据，不需要操心内存问题，错误自动重试，并且可以自定义每一行每个字段的处理函数，处理得到新的数据，实行计划任务，定时迁移增量数据    
+可以根据数据自动建库建表，而无需操心数据格式和类型    
+拥有详细的日志记录    
+
+支持.csv .sql .json .xls .xlsx mysql ElasticSearch excel mongodb sqlite redis...表到表互相转换   
+
+```text
 ETL with simple code and easy code，   
 Migrating form DataBase to DataBase by 2 lines code, The fastest migration tool for all database by scheduled tasks with
 2 lines of code.    
 Can automatically build a table based on data    
 Has detailed logging    
-
-用非常简单的代码进行数据ETL    
-2行代码即可使用最高效的方式最快的速度在各种数据库中迁移数据，并且可以实行计划任务，定时迁移增量数据    
-可以根据数据自动建库建表，而无需操心数据格式和类型    
-拥有详细的日志记录    
-
-支持.csv .sql .json .xls .xlsx mysql ElasticSearch excel mongodb sqlite redis...互相转换   
-
+```
 
 ETL是将业务系统的数据经过抽取（Extract）、清洗转换（Transform）之后加载（Load）到数据仓库的过程，
 目的是将企业中的分散、零乱、标准不统一的数据整合到一起，为企业的决策提供分析依据。
 
+#### ETL全流程 DEMO
+
+```python
+from d22d import (MySqlD, Migration)
+Migration(
+    database_from=MySqlD(host='localhost', port=3306, database='test',user='root', passwd='root'),  # 数据来源数据库
+    database_to=MySqlD(host='192.168.0.100', port=3307, database='dbtest', user='root', passwd='root'),  # 数据去向数据库
+    table_from='user_test',  # 数据来源数据库表名
+    table_to='user'  # 数据去向数据库表名
+).run() # 省略字段处理，一行代码一步到位
+```
+
+---
 
 #### 抽取（Extract）
     MySqlD(host='192.168.0.100', port=3306, database='test', user='root', passwd='root').get_data()
@@ -25,34 +46,32 @@ ETL是将业务系统的数据经过抽取（Extract）、清洗转换（Transfo
 #### 清洗转换（Transform）
 
     def self_format(data):
+        # 重写Migration的format_data函数，自定义每一行如何用代码处理
         new_row = data
         new_row['uuid'] = data.pop('user_id')
         new_row['time'] = int(time.time())
         new_row['tag'] = 'xs'
         return new_row
+    Migration.format_data = self_format
 
 #### 加载（Load）
     MySqlD(host='192.168.0.100', port=3306, database='test', user='root', passwd='root').save_data()
 
+---
 
-```python
-# 省略任务处理，一行代码一步到位
-from d22d import (MySqlD, Migration)
-Migration(
-    database_from=MySqlD(host='localhost', port=3306, database='test',user='root', passwd='root'),  # 数据来源数据库
-    database_to=MySqlD(host='192.168.0.100', port=3306, database='test', user='root', passwd='root'),  # 数据去向数据库
-    table_from='user',  # 数据来源数据库表名
-    table_to='user'  # 数据去向数据库表名
-).run()
+## Install 安装
 
+### 互联网用户：
+```shell
+pip install d22d
 ```
 
-## Install 如何安装
-* 以下说明完全只针对安装源码调试的用户， 
-普通用户sudo pip install d22d 已可使用，可跳过本节安装说明直至["RUN 如何使用"](#trun)
-#### 如果是互联网用户
+### 源码调试用户：
 
-##### 安装python3.7以上如有可跳过
+* 以下说明完全只针对安装源码调试的用户， 
+互联网用户sudo pip install d22d 已可使用，可跳过本节安装说明直至["RUN 如何使用"](#trun)
+
+##### 安装python3.7以上
 
 ###### python3 centos
 
@@ -89,7 +108,9 @@ sudo python3.8 get-pip.py
 
 ---
 
-#### 如果是内网用户无法连接互联网下载python环境，无法pip install安装python依赖包，这里贴心的为你准备了python虚拟环境包，使用方法：
+### 内网用户
+
+如果是无法连接互联网下载python环境，无法pip install安装python依赖包，这里贴心的为你准备了python虚拟环境包，使用方法：
 
 1.下载整个项目zip包解压到本地
 
@@ -113,14 +134,99 @@ sudo python3.8 get-pip.py
     
 ##  <a name="trun">RUN 如何使用</a>
 
+###### Migration类的定义
+参数
+```text
+database_from： 数据库类 如： ElasticSearchD, MySqlD, CsvD, JsonListD, XlsIbyFileD, XlsxIbyFileD等     
+database_to： 数据库类 如： ElasticSearchD, MySqlD, CsvD, JsonListD, XlsIbyFileD, XlsxIbyFileD等    
+table_from： index名或table名或文件名（如不带则会遍历所有数据库表进行迁移到指定数据库同名表）    
+table_to： index名或table名或文件名  
+pks：定义表的主键，或者复合主键用“,”分割，默认为空字符串''
+pkd：数据库到数据库整个迁移的时候，定义每个表的主键pks，dict型，默认为None
+windows：定义流式游标处理读取数据时的窗口大小，默认为10000，相当于每次从数据库中每次取10000条数据到内存里
+count_from：当已知来源数据库表读取的总条数时可以给定，以此来节约程序计算数据量大小的时间，否则则会通过命令计算，默认为None，为日志中显示处理数据的百分比进度条而存在
+size：定义来源数据库表读取的限制条数，相当于mysql的limit，不过是在内存中处理，默认为None不限制，int型
+quchong：定义来源数据库表读取的数据是否需要在内存中用set去重，大数据量慎用，相当于mysql的dis，不过是在内存中处理，默认为None不限制，int型
+get_data_kwargs：定义get_data的自定义参数，深度使用用户可能才需要
+save_data_kwargs：定义save_data的自定义参数，深度使用用户可能才需要
+```
+方法
+```text
+run(): 开始执行ETL流程，失败自动重试，命令行打印进度百分比
+format_data(data): 定义每一行数据的处理逻辑，传入dict，返回dict，默认是不变
+```
+##### CsvD类的定义
+参数
+```text
+path：定义csv文件保存的根路径
+split：定义csv文件的分隔符，默认=','
+extension：定义csv文件的后缀名，默认='csv'
+encoding：定义csv文件的读取编码格式，默认='utf8'
+```
+方法
+```text
+get_count(): 获取文件行数
+get_data(file_name, fieldnames=None, restkey=None, restval=None, dialect="excel", **kwargs): 流式读取csv文件
+save_data(file_name, data, *args, **kwargs): 流式保存csv文件
+create_index(file_name, data, *args, **kwargs): 建立csv文件并写入第一行键值（表头）
+```
+##### XlsxIbyFileD类的定义
+参数
+```text
+path：定义csv文件保存的根路径
+extension：定义csv文件的后缀名，默认='xlsx'
+```
+方法
+```text
+get_count(file_name): 获取文件行数
+get_data(file_name, fieldnames=None, restkey=None, restval=None, dialect="excel", **kwargs): 流式读取csv文件
+save_data(file_name, data, *args, **kwargs): 流式保存csv文件
+create_index(file_name, data, *args, **kwargs): 建立csv文件并写入第一行键值（表头）
+```
+##### MySqlD类的定义
+参数
+```text
+host: 定义数据库host
+port: 定义数据库port
+user: 定义数据库user
+passwd: 定义数据库passwd
+database: 定义数据库database
+```
+方法
+```text
+get_count(sql): 获取数据行数
+get_data(sql, **kwargs): 流式读取数据
+save_data(table_name, data, **kwargs): 流式保存数据
+create_index(table_name, data, **kwargs): 建立数据库表并写入第一行键值（表头）
+```
+##### JsonListD类的定义
+    # TODO 自行看源码或者IDE自动补全
+##### SqlFileD类的定义
+    # TODO 自行看源码或者IDE自动补全
+##### MongoDBD类的定义
+    # TODO 自行看源码或者IDE自动补全
+##### ElasticSearch类的定义
+    # TODO 自行看源码或者IDE自动补全
+
+---
+
+# 例子 DEMO
 1. need python3
 1. create your .py file 
 ```python
 import d22d
 from d22d import (
- ElasticSearchD, MySqlD, CsvD, SqlFileD, JsonListD,
- XlsIbyFileD, XlsxIbyFileD, MongoDBD, ListD,
- Migration, Migration2DB, open_log
+ ElasticSearchD, 
+ MySqlD,
+ CsvD,
+ SqlFileD,
+ JsonListD,
+ XlsIbyFileD,
+ XlsxIbyFileD,
+ MongoDBD,
+ ListD,
+ Migration, Migration2DB,
+ open_log
 )
 
 
@@ -264,15 +370,12 @@ def test6():
     a112    2   1638410973 xs
     """
     import time
-    ld = ListD('user1')
-    ld.data = {'user1':
-        [
+    data = [
             {"user_id":"a111", "sex":1},
             {"user_id":"a112", "sex":2},
-        ]
-    }
+    ]
     t = Migration(
-        database_from=ld,
+        database_from=ListD('user1', data=data),
         database_to=MySqlD(host='localhost', port=3306, database='test',
                              user='root', passwd='root'),
         table_from='user1',
@@ -374,12 +477,6 @@ if __name__ == '__main__':
 1. 观察数据迁移时输出的日志，耐心等待程序执行完毕
 
 
-###### Migration类的参数定义
-
-database_from： 数据库类 如： ElasticSearchD, MySqlD, CsvD, JsonListD, XlsIbyFileD, XlsxIbyFileD等     
-database_to： 数据库类 如： ElasticSearchD, MySqlD, CsvD, JsonListD, XlsIbyFileD, XlsxIbyFileD等    
-table_from： index名或table名或文件名（如不带则会遍历所有数据库表进行迁移到指定数据库同名表）    
-table_to： index名或table名或文件名  
     
 
 ## 注意事项
@@ -400,6 +497,8 @@ table_to： index名或table名或文件名
     <tr> <td>ElasticSearch</td>      <td>indexes</td>           <td>index name</td> </tr>
     <tr> <td>MongoDB</td>            <td>collections</td>       <td>collection name</td> </tr>
     <tr> <td>Excel</td>              <td>file all sheet</td>    <td>filename</td> </tr>
+    <tr> <td>ClickHouse</td>              <td>tables</td>    <td>tablename</td> </tr>
+    <tr> <td>Oracle</td>              <td>tables</td>    <td>tablename</td> </tr>
     <tr> <td>.json</td>              <td>file</td>              <td>filename</td> </tr>
     <tr> <td>.csv</td>               <td>file</td>              <td>filename</td> </tr>
     <tr> <td>.sql</td>               <td>file</td>              <td>tablename in file</td> </tr>
@@ -409,10 +508,13 @@ table_to： index名或table名或文件名
 * 在入库mongodb时，限于mongodb数据库机制，无法高效自动去重，现在为了追求mongodb入库效率,
 如mongodb有重名collection会先重命名原始collection，格式为 原collection+时间+bak，再新建collection进行入库
 
-* Logstash是类似的开源项目，但配置繁琐，学习曲线相对陡峭，入库效率不高。
+* Logstash, pandas是类似的开源项目，但配置繁琐，学习曲线相对陡峭，入库效率不高，无法流式处理数据，无法灵活利用代码处理每一行数据等。
 本项目以极简主义为原则力求用最少的代码、最简单的配置解决用户最迫切的核心需求--数据快速转移
 ## TODO List 
 
+1. Hive
+1. HDFS
+1. TiDB
 1. mysql auto adjust data length
 1. mysql auto create index
 1. mongodb primary key

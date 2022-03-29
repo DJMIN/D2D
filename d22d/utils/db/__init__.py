@@ -597,6 +597,7 @@ class CsvD(BaseFileD):
         self.__file_w[index].writeheader()
         self._file_w[index].flush()
 
+
 class TxtD(BaseFileD):
     def __init__(self, path, split=',', extension='txt', encoding='utf8'):
         super().__init__(path, extension, encoding, newline='')
@@ -616,7 +617,6 @@ class TxtD(BaseFileD):
             if k not in self.___file_w:
                 self.___file_w[k] = v
         return self.___file_w
-
 
     def get_data(self, index, fieldnames=None, restkey=None, restval=None,
                  dialect="excel", **kwargs):
@@ -679,7 +679,8 @@ class RarD(ZipD):
             fieldnames=fieldnames or [], extension=extension, encoding=encoding)
 
     def get_data(self, index, **kwargs):
-        from ..rarutils import un_zip, iter_path, remove_folder
+        from ..rarutils import un_rar, remove_folder
+        from ..ziputils import iter_path
 
         ur_path = None
         try:

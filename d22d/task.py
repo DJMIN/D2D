@@ -135,9 +135,9 @@ class Migration(object):
                 # logger.info('{}\n|{}\n|\n|{}\n|{}\n'.format(f'{idx:-80}', d, f_d, f'{idx:-163}'))
                 logger.info('[查看数据样例][{}] {}   -->   {}'.format(f'{idx:010}', d, f_d))
 
-            if (self.size is not None) and (self.size < idx):
+            if (self.size is not None) and (self.size < idx + 1):
                 break
-            if len(action) > self.windows:
+            if len(action) >= self.windows:
                 time_use = time.time() - time_start
                 proc = (idx + 1) / count
 
@@ -148,7 +148,7 @@ class Migration(object):
                     proc * 100,
                     self.database_from, table_from,
                     self.database_to, table_to,
-                    ))
+                ))
                 kws = {"data": action, 'index': table_to, 'pks': pks, 'batch_size': 1000, 'mode': 'INSERT IGNORE'}
                 kws.update(self.save_data_kwargs)
                 utils.run_task_auto_retry(self.database_to.save_data, kwargs=kws)
@@ -285,9 +285,9 @@ class Migration2DB(object):
                 #     ))
                 # logger.info('{}\n|{}\n|\n|{}\n|{}\n'.format(f'{idx:080d}', d, f_d, f'{idx:0163d}'))
                 logger.info('[数据样例展示][{}] {}   -->   {}'.format(f'{idx:010}', d, f_d))
-            if (self.size is not None) and (self.size < idx):
+            if (self.size is not None) and (self.size < idx + 1):
                 break
-            if len(action) > self.windows:
+            if len(action) >= self.windows:
                 time_use = time.time() - time_start
                 proc = (idx + 1) / count1
 
@@ -298,7 +298,7 @@ class Migration2DB(object):
                     proc * 100,
                     self.database_from1, table_from1,
                     self.database_to, table_to,
-                    ))
+                ))
                 kws = {"data": action, 'index': table_to, 'pks': pks, 'batch_size': 1000, 'mode': 'INSERT IGNORE'}
                 kws.update(self.save_data_kwargs)
                 utils.run_task_auto_retry(self.database_to.save_data, kwargs=kws)

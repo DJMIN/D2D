@@ -135,7 +135,7 @@ class Migration(object):
                 # logger.info('{}\n|{}\n|\n|{}\n|{}\n'.format(f'{idx:-80}', d, f_d, f'{idx:-163}'))
                 logger.info('[查看数据样例][{}] {}   -->   {}'.format(f'{idx:010}', d, f_d))
 
-            if (self.size is not None) and (self.size < idx + 1):
+            if (self.size is not None) and (self.size <= idx + 1):
                 break
             if len(action) >= self.windows:
                 time_use = time.time() - time_start
@@ -285,7 +285,7 @@ class Migration2DB(object):
                 #     ))
                 # logger.info('{}\n|{}\n|\n|{}\n|{}\n'.format(f'{idx:080d}', d, f_d, f'{idx:0163d}'))
                 logger.info('[数据样例展示][{}] {}   -->   {}'.format(f'{idx:010}', d, f_d))
-            if (self.size is not None) and (self.size < idx + 1):
+            if (self.size is not None) and (self.size <= idx + 1):
                 break
             if len(action) >= self.windows:
                 time_use = time.time() - time_start

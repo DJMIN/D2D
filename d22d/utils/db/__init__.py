@@ -823,7 +823,7 @@ class JsonListD(BaseFileD):
                 yield json.loads(line.strip())
 
     def save_data(self, index, data, *args, **kwargs):
-        self._file_w[index].writelines((json.dumps(d) + '\n') for d in data)
+        self._file_w[index].writelines((json.dumps(d, ensure_ascii=False) + '\n') for d in data)
         self._file_w[index].flush()
 
 

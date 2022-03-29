@@ -1243,7 +1243,7 @@ class BaseClient(ABC):
 
     @with_cur_lock()
     def execute_iter_d(self, cur, sql, parms=None, *args, **kwargs):
-        print(sql)
+        print("execute_iter_d", sql)
         cur.set_stream_results(True, 1000)
         cur.execute(sql, parms, *args, **kwargs)
         result = cur.fetchmany(1000)
@@ -1296,6 +1296,7 @@ class ClickHouseD(BaseClient):
         """
         查看表结构
         """
+        self._cur = None
         return self.execute(f'desc {table_name}')
 
     def cols_type(self, table_name):
@@ -1304,6 +1305,7 @@ class ClickHouseD(BaseClient):
     def get_count(self, index, *args, **kwargs):
         if index.lower().strip().startswith('select '):
             index = f'({index.strip()})'
+        self._cur = None
         return self.execute(f'select count(0) as c from  {index} as taSDFEWVempTABlesdfecH')[0][0]
 
     @classmethod
@@ -1372,9 +1374,11 @@ class ClickHouseD(BaseClient):
             return
         sql, values = self.gen_insert_sql_no_v(index, insert_rows[0])
         insert_num = int((len(insert_rows) + windows - 1) / windows)
+        self._cur = None
         for i in range(insert_num):
             temp = insert_rows[i * windows:(i + 1) * windows:]
             logging.info('准备插入{}条数据'.format(len(temp)))
+
             try:
                 self.executemany(
                     sql,
@@ -1386,10 +1390,12 @@ class ClickHouseD(BaseClient):
     def insert_from_mysql(self, table_to, host, port, database, table, user, password):
         # 直接插入到clickhouse现有表
         sql = f"""insert into {table_to} SELECT * FROM mysql('{host}:{port}', '{database}', '{table}', '{user}', '{password}')"""
+        self._cur = None
         self.execute(sql, types_check=True)
 
     def is_table_exist(self, index):
         try:
+            self._cur = None
             if self.execute(f'select count(*) from {index}'):
                 return True
         except Exception:
@@ -1418,6 +1424,7 @@ class ClickHouseD(BaseClient):
         sql = sql.strip(',') + ')'
 
         sql += """ENGINE = Memory();"""
+        self._cur = None
         self.execute(sql)
 
     def set_default_data(self, index):
@@ -1439,21 +1446,23 @@ class ClickHouseD(BaseClient):
         if distribution:
             pass
         else:
+            self._cur = None
             return self.execute(f'show create table {index}')[0][0].replace('\n', ' ')
 
     def get_data(self, index, *args, **kwargs):
         sub_sql = f"{index} {kwargs.pop('condition')}" if 'condition' in kwargs else index
+        self._cur = None
         if index.lower().strip().startswith('select '):
             return self.execute_iter_d(sql=f'{sub_sql}', *args, **kwargs)
         else:
             return self.execute_iter_d(sql=f'select * from {sub_sql}', *args, **kwargs)
 
     def get_indexes(self):
+        self._cur = None
         return [i[0] for i in self.execute(f'show tables from {self.database}')]
 
     def get_cols_type(self, index):
         return dict({row[0]: row[1] for row in self.show_table_struct(index)})
-
 
 class ListD:
     def __init__(self, index='default', data=None):

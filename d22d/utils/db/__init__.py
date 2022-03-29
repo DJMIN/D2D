@@ -814,8 +814,9 @@ class SqlFileD(BaseFileD):
 
 
 class JsonListD(BaseFileD):
-    def __init__(self, path, extension='json', encoding='utf8'):
+    def __init__(self, path, extension='json', encoding='utf8', ensure_ascii=False):
         super().__init__(path, extension, encoding)
+        self.ensure_ascii = ensure_ascii
 
     def get_data(self, index):
         with open(self.gen_path_by_index(index), 'r', encoding=self.encoding) as f:
@@ -823,7 +824,7 @@ class JsonListD(BaseFileD):
                 yield json.loads(line.strip())
 
     def save_data(self, index, data, *args, **kwargs):
-        self._file_w[index].writelines((json.dumps(d, ensure_ascii=False) + '\n') for d in data)
+        self._file_w[index].writelines((json.dumps(d, ensure_ascii=self.ensure_ascii) + '\n') for d in data)
         self._file_w[index].flush()
 
 

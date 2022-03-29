@@ -956,6 +956,23 @@ class XlsxIbyFileD(XlsIbyFileD):
                 data = {keys[i]: cell.value for i, cell in enumerate(row)}
                 yield data
 
+    def get_cols_name_set(self, index):
+        workbook = openpyxl.load_workbook(self.gen_path_by_index(index))  # 文件路径
+        # 获取所有sheet的名字
+        cols_name = set()
+        for idx, worksheet in enumerate(workbook):
+            logging.info(f'sheet:{idx}:{worksheet.title}')
+            nrows = worksheet.max_row
+            if not nrows:
+                continue
+            keys = {i: key.value for i, key in enumerate(worksheet[1])}
+            print(f'sheet:{idx}:{worksheet.title}, keys:{keys}')
+            cols_name = cols_name | set(keys.values())
+        cols_name.remove(None)
+        cols_name_l = list(cols_name)
+        cols_name_l.sort()
+        return cols_name_l
+
 
 class MongoDBD(object):
     def __init__(self, hosts="mongodb://localhost:27017/", database='test', batch_size=1000):
@@ -1313,9 +1330,15 @@ class ClickHouseD(BaseClient):
     @classmethod
     def format_data_range(cls, data):
         for k, v in data.items():
-            if isinstance(data[k], datetime.date):
-                if data[k] < ClickHouseD.min_datetime or data[k] > ClickHouseD.max_datetime:
-                    data[k] = ClickHouseD.min_datetime
+            # 不能用isinstance，isinstance会考虑datetime的父类date
+            if type(data[k]) == datetime.date:
+                if data[k] < cls.min_datetime.date() or data[k] > cls.max_datetime.date():
+                    data[k] = cls.min_datetime.date()
+                if getattr(data[k], 'read', None):
+                    data[k] = data[k].read()
+            elif type(data[k]) == datetime.datetime:
+                if data[k] < cls.min_datetime or data[k] > cls.max_datetime:
+                    data[k] = cls.min_datetime
                 if getattr(data[k], 'read', None):
                     data[k] = data[k].read()
         return data

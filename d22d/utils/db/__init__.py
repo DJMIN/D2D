@@ -153,9 +153,9 @@ class ElasticSearchD(EsModel):
             query = {}
         else:
             index_name = index[0]
-            query = {'query': index[1].get('query')}
-            if query.get("_source"):
-                query.pop("_source")
+            query = {'query': index[1].get('query')} if index[1] and index[1].get('query') else {}
+            # if query.get("_source"):
+            #     query.pop("_source")
         return int(self.es.count(index=index_name, body=query)['count'])
 
     @staticmethod

@@ -100,11 +100,12 @@ class ElasticSearchD(EsModel):
     def get_data(self, index, *args, **kwargs):
         if isinstance(index, str):
             query = {}
+            index_name = index
         else:
+            index_name = index[0]
             query = index[1]
-            index = index[0]
         logging.debug(json.dumps(query))
-        for i in self.scan(query=query, index=index, *args, **kwargs):
+        for i in self.scan(query=query, index=index_name, *args, **kwargs):
             r = {}
             if r.get('id'):
                 r['_id'] = i['_id']
@@ -148,13 +149,14 @@ class ElasticSearchD(EsModel):
 
     def get_count(self, index, *args, **kwargs):
         if isinstance(index, str):
+            index_name = index[0]
             query = {}
         else:
-            index = index[0]
+            index_name = index[0]
             query = {'query': index[1].get('query')}
             if query.get("_source"):
                 query.pop("_source")
-        return int(self.es.count(index=index, body=query)['count'])
+        return int(self.es.count(index=index_name, body=query)['count'])
 
     @staticmethod
     def get_int_type_from_len(length):

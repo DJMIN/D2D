@@ -38,9 +38,9 @@ from threading import local as threading_local
 
 def get_table_name_from_sql(sql):
     pattern = {
-    'select' : r"(?!')*\bfrom\b\s+\b(?P<table_name>\w+)\b\s+\b(?P<table_sn>\w+)\b(?!')*",
-    'insert' : r"(?!')*\binsert\b\s+\binto\b\s+\b(?P<table_name>\w+)\b\s+\b(?P<table_sn>\w+)\b(?!')*",
-    'update' : r"(?!')*\bupdate\b\s+\b(?P<table_name>\w+)\b\s+\b(?P<table_sn>\w+)(?!')+",
+        'select': r"(?!')*\bfrom\b\s+\b(?P<table_name>\w+)\b\s+\b(?P<table_sn>\w+)\b(?!')*",
+        'insert': r"(?!')*\binsert\b\s+\binto\b\s+\b(?P<table_name>\w+)\b\s+\b(?P<table_sn>\w+)\b(?!')*",
+        'update': r"(?!')*\bupdate\b\s+\b(?P<table_name>\w+)\b\s+\b(?P<table_sn>\w+)(?!')+",
     }
     res = re.compile(pattern[sql.lower().strip().split(' ')[0]], re.S | re.IGNORECASE).search(sql)
     if res:
@@ -99,10 +99,7 @@ class ElasticSearchD(EsModel):
 
     def get_data(self, index, *args, **kwargs):
         if isinstance(index, str):
-            if 'condition' in kwargs:
-                query = kwargs.pop('condition')
-            else:
-                query = {}
+            query = {}
         else:
             query = index[1]
             index = index[0]
@@ -143,7 +140,6 @@ class ElasticSearchD(EsModel):
         if len(actions):
             self.bulk_write(actions, **write_kws)
 
-
     def get_indexes(self):
         return list(self.es.indices.get_alias().keys())
 
@@ -154,8 +150,8 @@ class ElasticSearchD(EsModel):
         if isinstance(index, str):
             query = {}
         else:
-            query = {'query': index[1]['query']}
             index = index[0]
+            query = {'query': index[1].get('query')}
             if query.get("_source"):
                 query.pop("_source")
         return int(self.es.count(index=index, body=query)['count'])
@@ -185,10 +181,6 @@ class ElasticSearchD(EsModel):
         return None
 
     def create_index(self, index, data, pks='id'):
-        # sql = """SET NAMES utf8mb4;"""
-        # sql += """SET FOREIGN_KEY_CHECKS = 0;"""
-        # if drop == 1:
-        #     sql += """DROP TABLE IF EXISTS `{}`;""".format(tbname)
         pairs = {
             "settings": {
                 "index": {
@@ -196,33 +188,19 @@ class ElasticSearchD(EsModel):
                     "number_of_replicas": 1
                 }
             },
-            'mappings': {"doc": {
-                'properties': {
-
-                }}
-            }
+            'mappings': {}
         }
-        properties = pairs['mappings']['doc']['properties']
-        # ES7以上删掉doc层
-        # pairs = {
-        #     "settings": {
-        #         "index": {
-        #             "number_of_shards": 1,
-        #             "number_of_replicas": 1
-        #         }
-        #     },
-        #     'mappings': {
-        #         'properties': {
-        #
-        #         }
-        #     }
-        # }
-        # properties = pairs['mappings']['properties']
-
+        properties = {}
         if self.cols_ddl:
             if self.cols_ddl[index].get('mappings'):
-                pairs['mappings'] = self.cols_ddl[index]['mappings']
+                # cols_ddl 字典里有 mappings
+                mapping = self.cols_ddl[index]['mappings']
+                if "properties" in mapping:
+                    properties = mapping['properties']
+                else:
+                    properties = mapping.get('doc', {}).get('properties', {})
             else:
+                # cols_ddl 字典里 是 mysql 的类型
                 for col, col_type in self.cols_ddl[index].items():
                     properties[col] = {}
                     if col_type in ['int', 'bigint', 'integer', 'tinyint', 'smallint', 'mediumint']:
@@ -231,7 +209,8 @@ class ElasticSearchD(EsModel):
                         properties[col]['type'] = 'float'
                     elif col_type in ['bit']:
                         properties[col]['type'] = 'long'
-                    elif col_type in ['char', 'varchar', 'text', 'tinyblob', 'tinytext', 'blob', 'mediumtext', 'mediumblob',
+                    elif col_type in ['char', 'varchar', 'text', 'tinyblob', 'tinytext',
+                                      'blob', 'mediumtext', 'mediumblob',
                                       'longtext', 'longblob', 'json', 'timestamp', 'datetime']:
                         properties[col] = {
                             "type": "text",
@@ -267,6 +246,13 @@ class ElasticSearchD(EsModel):
                     if self.ik:
                         properties[name]["fields"]["analyzer"] = "ik_max_word"
                         properties[name]["fields"]["search_analyzer"] = "ik_smart"
+
+        # ES7以上删掉doc层
+        if int(self.es.info().get('version', {}).get('number', '0').split('.')[0]) >= 7:
+            pairs['mappings'] = {'properties': properties}
+        else:
+            pairs['mappings'] = {"doc": {'properties': properties}}
+
         if self.es.indices.exists(index=index) is not True:
             res = self.es.indices.create(index=index, body=pairs)
             if not res:
@@ -397,7 +383,9 @@ class MySqlD(ClientPyMySQL, ABC):
 
     def get_table_ddl(self, index):
         sql = f"show create table {index}"
-        return 'CREATE TABLE IF NOT EXISTS ' + self._execute(sql=sql)[1].__next__()['Create Table'].replace('\n', '').strip('CREATE TABLE')
+        return 'CREATE TABLE IF NOT EXISTS ' + self._execute(sql=sql)[1].__next__()['Create Table'].replace('\n',
+                                                                                                            '').strip(
+            'CREATE TABLE')
 
     def get_count(self, index, *args, **kwargs):
         if index.lower().strip().startswith('select '):
@@ -1062,7 +1050,7 @@ class BaseClient(ABC):
         return self.conn.cursor()
 
     @classmethod
-    def gen_insert_sql(cls, table_name, data, duplicate_update=False, partition='',):
+    def gen_insert_sql(cls, table_name, data, duplicate_update=False, partition='', ):
         keys = []
         values = []
         for k, v in data.items():
@@ -1464,6 +1452,7 @@ class ClickHouseD(BaseClient):
     def get_cols_type(self, index):
         return dict({row[0]: row[1] for row in self.show_table_struct(index)})
 
+
 class ListD:
     def __init__(self, index='default', data=None):
         self.data = {index: data or []}
@@ -1563,6 +1552,7 @@ class OracleD(BaseClient):
                     except oracle_DatabaseError:
                         time.sleep(600)
                         result = run_task_auto_retry(_dbcur.fetchmany, kwargs={'batch': batch})
+
             return _fetch(cur)
         except Exception as e:
             raise e

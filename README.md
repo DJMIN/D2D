@@ -443,6 +443,8 @@ def test_get_ftp_file_until_success():
     from d22d.model.diskcachemodel import DiskCacheStore
     from d22d.utils import active_log
     active_log()  # 打开日志
+    from d22d.utils import get_realpath_here
+    print(get_realpath_here(with_lineno=True))
     ds = DiskCacheStore('disk_cache_ftp_index')  # 创建已传输磁盘记录节约网络开销
     fs = FtpClientStore(
         '123.123.123.123', 21, 'user1', '123123123',

@@ -149,7 +149,7 @@ class ElasticSearchD(EsModel):
 
     def get_count(self, index, *args, **kwargs):
         if isinstance(index, str):
-            index_name = index[0]
+            index_name = index
             query = {}
         else:
             index_name = index[0]

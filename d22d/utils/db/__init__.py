@@ -119,7 +119,7 @@ class ElasticSearchD(EsModel):
         write_kws = {k: kwargs[k] for k in ['batch_size', 'retry'] if k in kwargs}
         for d in data:
             if pks:
-                _id = '-'.join(d[k] for k in pks.split(','))
+                _id = '-'.join(str(d[k]) for k in pks.split(','))
             elif '_id' in d:
                 _id = d['_id']
             else:
@@ -127,7 +127,8 @@ class ElasticSearchD(EsModel):
 
             if pop_id:
                 for k in pop_id.split(','):
-                    d.pop(k)
+                    if k in d:
+                        d.pop(k)
             actions.append({
                 '_op_type': 'index',  # 操作 index update create delete
                 '_index': index,  # index
@@ -525,7 +526,7 @@ class BaseFileD(object):
     def w_open_func(cls, *args, **kwargs):
         return open(*args, **kwargs)
 
-    def create_index(self, index, data, pks='id'):
+    def create_index(self, index, data, pks='id', backup=True, file_mode='w'):
         if not os.path.exists(self.path):
             try:
                 os.makedirs(self.path)
@@ -533,12 +534,12 @@ class BaseFileD(object):
                 logging.warning(e)
                 Path(self.path).mkdir(parents=True, exist_ok=True)
         path = self.gen_path_by_index(index)
-        if os.path.exists(path):
+        if backup and os.path.exists(path):
             os.rename(path, f"{path}.{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.bak")
         dirname = os.path.dirname(path)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
-        self._file_w.setdefault(index, self.w_open_func(path, 'w', encoding=self.encoding, newline=self.newline))
+        self._file_w.setdefault(index, self.w_open_func(path, file_mode, encoding=self.encoding, newline=self.newline))
 
 
 class CsvD(BaseFileD):
@@ -580,8 +581,8 @@ class CsvD(BaseFileD):
         self.__file_w[index].writerows([d for d in data])
         self._file_w[index].flush()
 
-    def create_index(self, index, data, pks='id'):
-        super(self.__class__, self).create_index(index, data)
+    def create_index(self, index, data, pks='id', backup=True, file_mode='w'):
+        super(self.__class__, self).create_index(index, data, pks, backup, file_mode)
         # self._file_w[index].writerow((self.split.join(f'"{v.__repr__()[1:-1]}"' for v in data.keys()) + '\n'))
         self.__file_w[index].fieldnames = [v for v in data.keys()]
         self.__file_w[index].writeheader()
@@ -620,8 +621,9 @@ class TxtD(BaseFileD):
         self._file_w[index].writelines((self.split.join(v.__repr__() for v in d.values()) + '\n') for d in data)
         self._file_w[index].flush()
 
-    def create_index(self, index, data, pks='id'):
-        super(self.__class__, self).create_index(index, data)
+
+    def create_index(self, index, data, pks='id', backup=True, file_mode='w'):
+        super(self.__class__, self).create_index(index, data, pks, backup, file_mode)
         self._file_w[index].writelines((self.split.join(v.__repr__() for v in data.keys()) + '\n'))
         self._file_w[index].flush()
 
@@ -805,8 +807,8 @@ class SqlFileD(BaseFileD):
 
         self._file_w[index].flush()
 
-    def create_index(self, index, data, pks='id'):
-        super(self.__class__, self).create_index(index, data)
+    def create_index(self, index, data, pks='id', backup=True, file_mode='w'):
+        super(self.__class__, self).create_index(index, data, pks, backup, file_mode)
         # self._file_w[index].writerow((self.split.join(f'"{v.__repr__()[1:-1]}"' for v in data.keys()) + '\n'))
 
 
@@ -902,8 +904,8 @@ class XlsIbyFileD(BaseFileD):
         wb = openpyxl.Workbook()
         return wb
 
-    def create_index(self, index, data, pks='id'):
-        super().create_index(index, data)
+    def create_index(self, index, data, pks='id', backup=True, file_mode='w'):
+        super(self.__class__, self).create_index(index, data, pks, backup, file_mode)
         self._file_w_now_sheet_num[index] = 0
         self._file_w_now_sheet[index] = self._file_w[index].create_sheet(index=self._file_w_now_sheet_num[index])
         keys = [key for key in data.keys()]
@@ -925,7 +927,7 @@ class XlsIbyFileD(BaseFileD):
                 except Exception as e:
                     logging.error(e)
                     traceback.print_exc()
-                    time.sleep(5)
+                    time.sleep(2)
 
 
 class XlsxIbyFileD(XlsIbyFileD):

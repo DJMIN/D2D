@@ -3,6 +3,7 @@ python-logstash
 gunicorn
 kafka-python
 chardet
+chardet2
 baostock
 async-timeout
 thrift

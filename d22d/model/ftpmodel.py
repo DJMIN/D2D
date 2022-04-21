@@ -325,7 +325,7 @@ class FtpController:
         self.hidden_files = False
 
         # Variable to store the platform the server is running on
-        self.server_platform = 'Linux' if sys.platform != 'win32' else sys.platform
+        self.server_platform = 'Linux'
         self.lock = Lock()
         self.ftp_lock = Lock()
         self.ftp = None

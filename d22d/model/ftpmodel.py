@@ -1121,19 +1121,20 @@ class FtpController:
         return self.ftp.pwd()
 
     def get_properties(self, file_details):
-        details_list = file_details.split()
-        # Get file attributes
-        file_attribs = details_list[0]
-        # Get date modified
-        date_modified = ' '.join(details_list[5:8])
-        # Remove the path from the name
-        file_name = ' '.join(details_list[8:])
-        # Get size if it is not a directory
-        if 'd' not in file_details[0]:
-            file_size = details_list[4]
-            return [file_name, file_attribs, date_modified, file_size]
-        else:
-            return [file_name, file_attribs, date_modified]
+        if self.server_platform == 'Linux':
+            details_list = file_details.split()
+            # Get file attributes
+            file_attribs = details_list[0]
+            # Get date modified
+            date_modified = ' '.join(details_list[5:8])
+            # Remove the path from the name
+            file_name = ' '.join(details_list[8:])
+            # Get size if it is not a directory
+            if 'd' not in file_details[0]:
+                file_size = details_list[4]
+                return [file_name, file_attribs, date_modified, file_size]
+            else:
+                return [file_name, file_attribs, date_modified]
 
     def is_dir(self, file_details):
         if self.server_platform == 'Linux':

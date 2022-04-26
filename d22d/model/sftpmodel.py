@@ -8,6 +8,14 @@ from os import listdir
 from os.path import isfile, join
 import shutil
 import paramiko
+import socks
+import socket
+import sys
+import typing
+
+from d22d.model import midhardware
+from d22d.utils import log_info
+from d22d.utils.ziputils import makedirs
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -23,12 +31,18 @@ class ParamikoSftpClient(paramiko.SFTPClient):
         except:
             self.cwd('/')
 
+NETWORK_ERR = (
+    socket.timeout,  # 直接断了
+    EOFError,  # 用代理断了
+    socks.ProxyConnectionError,  # 用代理的时候被拔网线
+    OSError  # 被拔网线
+)
 
 class SftpController:
     # /!\ Although the comments and variable names say 'file_name'/'file_anything' it inculdes folders also
     # Some functions in this class has no exception handling, it has to be done outside
 
-    def __init__(self):
+    def __init__(self, host, port=22, username=' ', password=' '):
         # List to store file search and search keywords
         self.search_file_list = []
         self.detailed_search_file_list = []
@@ -41,14 +55,85 @@ class SftpController:
         # Variable to tell weather hidden files are enabled
         self.hidden_files = False
 
-    def connect_to(self, Host, Username=' ', Password=' ', Port=22):
-        self.transport = paramiko.Transport((Host, Port))
-        self.transport.connect(username=Username, password=Password)
-        self.ftp = ParamikoSftpClient.from_transport(self.transport)
-        self.ftp.go_to_home(Username)
+        self.work_dir_now = '/'
+
+        self.host = host
+        self.username = username
+        self.password = password
+        self.port = port
+
+    def connect_until_success(self, retry=0):
+        cnt_retry = 0
+        while True:
+            cnt_retry += 1
+            try:
+                log_info(f"正在尝试第[{cnt_retry}/{retry}]次登录[{self}]。。。")
+                # 先无tls，在试试有tls
+                self.ftp = None
+                self.connect_to()
+                return
+            except Exception as inst:
+                if retry and cnt_retry > retry:
+                    raise inst
+                print_func = logger.error
+                if not isinstance(inst, NETWORK_ERR):
+                    print_func = logger.exception
+                print_func(f"第[{cnt_retry}/{retry}]次登录[{self}]失败 [{type(inst)}] {inst}, 5秒后重试。。。")
+                time.sleep(5)
+
+    def connect_to(self):
+        try:
+            self.transport = paramiko.Transport((self.host, self.port))
+            self.transport.connect(username=self.username, password=self.password)
+            self.ftp = ParamikoSftpClient.from_transport(self.transport)
+            # self.ftp.go_to_home(self.username)
+        except NETWORK_ERR as inst:
+            logger.error(f"重试连接{self}服务端中断,错误：[{inst}]")
+        except Exception as inst:
+            logger.exception(f"Couldn't connect server: {type(inst)}")
+            return False
 
     def toggle_hidden_files(self):
         self.hidden_files = not self.hidden_files
+
+    def cwd_recode_path(self, path):
+        self.ftp.cwd(path)
+        if path.startswith('/'):
+            self.work_dir_now = self.format_realpath(path)
+        else:
+            old_path = self.work_dir_now
+            self.work_dir_now = self.format_realpath(os.path.join(old_path, path))
+
+    def walk(self, ftp_file_path):
+        old_path = self.work_dir_now
+        if ftp_file_path:
+            if ftp_file_path.startswith('/'):
+                ftp_file_path = self.format_realpath(ftp_file_path)
+            else:
+                ftp_file_path = self.format_realpath(os.path.join(self.work_dir_now, ftp_file_path))
+            self.cwd_recode_path(ftp_file_path)
+        else:
+            raise FileNotFoundError(ftp_file_path)
+        detailed_file_list = self.get_detailed_file_list(True)
+        file_list = self.get_file_list(detailed_file_list)
+        for file_name, file_details in zip(file_list, detailed_file_list):
+            r_fs = []
+            r_fns = []
+            pr = self.get_properties(file_details)
+            file_name = pr[0]
+            if file_name and file_name in ['.', '..']:
+                continue
+            if self.is_dir(file_details):
+                r_fs.append(file_name)
+                for root, fs, fns in self.walk(f"{ftp_file_path}/{file_name}"):
+                    yield root, fs, fns
+            else:
+                file_attribs, date_modified = pr[1], pr[2]
+                r_fns.append((file_name, file_attribs, date_modified, int(pr[-1] if pr[-1] else 0)))
+            yield ftp_file_path, r_fs, r_fns
+
+        if ftp_file_path:
+            self.cwd_recode_path(old_path)
 
     def get_detailed_file_list(self, ignore_hidden_files_flag=False):
         files = []
@@ -84,6 +169,22 @@ class SftpController:
 
     def chmod(self, filename, permissions):
         self.ftp.chmod(filename, permissions)
+
+    @staticmethod
+    def format_realpath(path):
+        if sys.platform == 'win32':
+            res = str(os.path.realpath(path)).split(':', 1)[-1].replace('\\', '/')
+        else:
+            res = os.path.realpath(path)
+        return res
+
+    @staticmethod
+    def format_path(path):
+        if sys.platform == 'win32':
+            res = str(path).replace('\\', '/')
+        else:
+            res = path
+        return res
 
     def is_there(self, path):
         try:
@@ -224,6 +325,70 @@ class SftpController:
         self.ftp.cwd('..')
         os.chdir('..')
 
+    def sftp_mkdir_p(self, remote_path):
+        if remote_path == "/":
+            # absolute path so change directory to root
+            self.ftp.chdir("/")
+            return
+        if remote_path == "":
+            # top-level relative directory must exists
+            return
+        try:
+            # sub-directory exists
+            self.ftp.chdir(remote_path)
+        except IOError:
+            dirname, basename = os.path.split(remote_path.rstrip("/"))
+            self.sftp_mkdir_p(dirname)
+            self.ftp.mkdir(basename)
+            self.ftp.chdir(basename)
+
+    def upload_file_to_some_where(self, local_path, remote_folder, remote_filename='', status_command=log_info):
+        # TODO 断点续传
+        if not os.path.exists(local_path):
+            raise SystemError(f'本地路径不存在：{local_path.__repr__()}')
+        if not remote_folder:
+            raise SystemError(f'远程路径错误：{remote_folder.__repr__()} {remote_filename}')
+        if not remote_filename:
+            remote_folder, remote_filename = os.path.split(remote_folder)
+
+        if not remote_folder.startswith('/'):
+            remote_folder = self.format_realpath(os.path.join(self.work_dir_now, remote_folder))
+        remote_path = os.path.join(remote_folder, remote_filename)
+        old_path = self.work_dir_now
+        if remote_folder:
+            # Create directory in server and go inside
+            try:
+                if (not self.is_there(remote_folder)):
+                    self.sftp_mkdir_p(remote_folder)
+                    status_command(remote_folder, 'Creating directory')
+                else:
+                    status_command(remote_folder, 'Directory exists')
+                self.ftp.cwd(remote_folder)
+            except:
+                status_command(remote_folder, 'Failed to create directory')
+                return
+        self._upload_file_to_some_where(local_path, remote_path, status_command)
+        self.work_dir_now = old_path
+        self.cwd_recode_path(old_path)
+
+    def _upload_file_to_some_where(
+            self, local_path, remote_path, status_command=log_info):
+        file_size = os.stat(local_path).st_size
+
+        # Function to update status
+        def upload_progress(transferred, remaining):
+            status_command(local_path, str(min(round((transferred / file_size) * 100, 8), 100)) + '%')
+
+        # Try to upload file
+        try:
+            status_command(local_path, 'Uploading')
+            self.ftp.put(local_path, remote_path, callback=upload_progress)
+            status_command(None, 'newline')
+        except Exception as e:
+            print(e)
+            status_command(remote_path, 'Upload failed')
+            return
+
     def download_file(self, ftp_file_name, file_size, status_command, replace_command):
         # Function to update progress
         def download_progress(transferred, remaining):
@@ -269,6 +434,45 @@ class SftpController:
         # Got to parent directory
         self.ftp.cwd('..')
         os.chdir('..')
+
+    def get_size(self, ftp_file_name):
+        res = int(self.ftp.stat(ftp_file_name).st_size) or 0
+        return res
+
+    def _download_file_to_some_where( self, ftp_file_name, local_path,
+                                      file_size, status_command):
+        # Function to update progress
+        def download_progress(transferred, remaining):
+            status_command(ftp_file_name, str(min(round((transferred / file_size) * 100, 8), 100)) + '%')
+
+        # Try to download file
+        try:
+            status_command(ftp_file_name, 'Downloading')
+            self.ftp.get(ftp_file_name, local_path, callback=download_progress)
+            status_command(None, 'newline')
+        except:
+            status_command(ftp_file_name, 'Download failed')
+
+
+    def download_file_to_some_where(self, ftp_file_name, local_path, local_file_name='',
+                                    file_size=0, status_command=log_info, replace_command=log_info):
+        if not local_path:
+            raise SystemError(f'路径错误：{local_path.__repr__()}')
+        if isfile(ftp_file_name):
+            if replace_command(ftp_file_name, 'File exists in destination folder') is False:
+                return
+            # Try to open file, if fails return
+        if not local_file_name:
+            local_file_name = os.path.basename(ftp_file_name)
+
+        makedirs(local_path, check_dot=False)
+        local_path = self.format_path(os.path.join(local_path, local_file_name))
+
+        if not file_size:
+            file_size = self.get_size(ftp_file_name)
+
+        self._download_file_to_some_where(ftp_file_name, local_path, file_size, status_command)
+        return local_path
 
     def search(self, dir_name, status_command, search_file_name):
         # Go into the ftp directory
@@ -447,3 +651,92 @@ class ParamikoFolderUploader(object):
                 else:
                     if '/.git' not in file_full_name and '.pyc' not in file_full_name:
                         logger.debug(f'根据过滤规则，不上传这个文件 {file_full_name}')
+
+class SftpClientStore(midhardware.BaseStore):
+    def __init__(self, host, port, user, password, location='/', tmp_path='ftp_data_tmp'):
+        self._host = host
+        self._port = port
+        self._user = user
+        self._password = password
+
+        self.tmp_path = tmp_path
+        self.location = str(location).replace('\\', '/')
+        if not self.location.endswith('/'):
+            self.location += '/'
+
+        self.client = SftpController(host, port, user, password)
+        self.client.connect_until_success()
+        self.client.ftp.cwd(self.location)
+        self.client.work_dir_now = self.location
+
+    def count_data(self, data_type=None, *args, **kwargs):
+        return NotImplementedError
+
+    def list_data(self, data_type=None, location=None, *args, **kwargs):
+        for root, fs, fns in self.client.walk(location or self.location):
+            for fn, file_attribs, date_modified, size in fns:
+                yield {
+                    'root': root,
+                    'filename': fn,
+                    'attribs': file_attribs,
+                    'modified': date_modified,
+                    'size': int(size),
+                    "realpath": self.client.format_realpath(os.path.join(root, fn))
+                }
+
+    def check_data(self, position, data_type=None, *args, **kwargs):
+        return NotImplementedError
+
+    def get_data(self, position: typing.Union[str, dict], data_type=None, *args, **kwargs):
+        """
+        position 远程文件名
+        self.tmp_path 本地文件夹路径
+        self.location 远程文件夹路径
+        """
+        file_name = None
+        file_size = 0
+        if isinstance(position, str):
+            file_name = self.client.format_path(os.path.join(self.location, position))
+        elif isinstance(position, dict):
+            file_name = position['realpath']
+            file_size = position['size']
+        if file_name:
+            return self.client.download_file_to_some_where(
+                file_name,
+                self.tmp_path,
+                file_size=file_size
+            )
+
+    def save_data(self, position: str, data, data_type=None, *args, **kwargs):
+        return self.client.upload_file_to_some_where(
+                data,
+                self.location,
+                position
+            )
+
+    def delete_data(self, position, data_type=None, *args, **kwargs):
+        return NotImplementedError
+
+    def get_position(self, position, data_type=None, *args, **kwargs):
+        return NotImplementedError
+
+    def get_data_size(self, position, data_type=None, *args, **kwargs):
+        return NotImplementedError
+
+    def check_self(self, *args, **kwargs):
+        return NotImplementedError
+
+    def save_self(self, *args, **kwargs):
+        return NotImplementedError
+
+    def free_self(self, *args, **kwargs):
+        return NotImplementedError
+
+
+if __name__ == '__main__':
+    __fs = SftpClientStore('192.168.0.111', 57522, 'test', '1234qwer!@#$QWER', '/ftp/tmp_test', 'data')
+
+    for __f in __fs.list_data():
+        print(__f)
+    # res = __fs.get_data('mysql2ftp_0424_1650809830.csv')
+    # res = __fs.save_data('sftp_test.csv','data/mysql2ftp_0424_1650809830.csv')

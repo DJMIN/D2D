@@ -3,7 +3,6 @@ python-logstash
 gunicorn
 kafka-python
 chardet
-chardet2
 baostock
 async-timeout
 thrift
@@ -64,7 +63,7 @@ twine
 sqlparse
 six
 orjson
-requests~=2.22.0
+requests~=2.27.1
 elasticsearch_dsl>=6.1
 PyMySQL>=0.9.3
 mysql-connector-python~=8.0.27

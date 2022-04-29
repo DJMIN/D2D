@@ -364,9 +364,10 @@ class SftpController:
                 else:
                     status_command(remote_folder, 'Directory exists')
                 self.ftp.cwd(remote_folder)
-            except:
+            except Exception as e:
                 status_command(remote_folder, 'Failed to create directory')
-                return
+                raise e
+
         self._upload_file_to_some_where(local_path, remote_path, status_command)
         self.work_dir_now = old_path
         self.cwd_recode_path(old_path)
@@ -385,9 +386,8 @@ class SftpController:
             self.ftp.put(local_path, remote_path, callback=upload_progress)
             status_command(None, 'newline')
         except Exception as e:
-            print(e)
             status_command(remote_path, 'Upload failed')
-            return
+            raise e
 
     def download_file(self, ftp_file_name, file_size, status_command, replace_command):
         # Function to update progress
@@ -450,8 +450,9 @@ class SftpController:
             status_command(ftp_file_name, 'Downloading')
             self.ftp.get(ftp_file_name, local_path, callback=download_progress)
             status_command(None, 'newline')
-        except:
+        except Exception as e:
             status_command(ftp_file_name, 'Download failed')
+            raise e
 
 
     def download_file_to_some_where(self, ftp_file_name, local_path, local_file_name='',
@@ -734,9 +735,9 @@ class SftpClientStore(midhardware.BaseStore):
 
 
 if __name__ == '__main__':
-    __fs = SftpClientStore('192.168.0.111', 57522, 'test', '1234qwer!@#$QWER', '/ftp/tmp_test', 'data')
+    __fs = SftpClientStore('192.168.0.111', 57522, 'test', '1234qwer!@#$QWER', '/home/test', 'data')
 
     for __f in __fs.list_data():
         print(__f)
     # res = __fs.get_data('mysql2ftp_0424_1650809830.csv')
-    # res = __fs.save_data('sftp_test.csv','data/mysql2ftp_0424_1650809830.csv')
+    res = __fs.save_data('mysql2ftp_0424_1650809830.csv','data/mysql2ftp_0424_1650809830.csv')

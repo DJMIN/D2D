@@ -231,7 +231,7 @@ class Migration2DB(object):
 
     def run_one(self, table_from1, table_to, pks):
         count1 = self.count_from1 or self.database_from1.get_count(table_from1)
-        count2 = self.count_from2 or self.database_from1.get_count(table_from1)
+        count2 = self.count_from2 or self.database_from2.get_count(self.table_from2)
         gkws1 = {}
         gkws1.update(self.get_data_kwargs1)
         gkws2 = {}
@@ -267,7 +267,7 @@ class Migration2DB(object):
                     else:
                         self.all_new_data_json_string.add(json.dumps(f_d))
             except Exception as e:
-                logging.info(f'{self.database_from1}/{table_from1}:{idx} {e}')
+                logging.error(f'{self.database_from1}/{table_from1}:{idx} {e}')
                 raise e
             action.append(f_d)
             if idx == 0:

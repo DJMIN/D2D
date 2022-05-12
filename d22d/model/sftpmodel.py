@@ -70,7 +70,9 @@ class SftpController:
                 log_info(f"正在尝试第[{cnt_retry}/{retry}]次登录[{self}]。。。")
                 # 先无tls，在试试有tls
                 self.ftp = None
-                self.connect_to()
+                self.transport = paramiko.Transport((self.host, self.port))
+                self.transport.connect(username=self.username, password=self.password)
+                self.ftp = ParamikoSftpClient.from_transport(self.transport)
                 return
             except Exception as inst:
                 if retry and cnt_retry > retry:

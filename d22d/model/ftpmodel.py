@@ -653,7 +653,8 @@ class FtpController:
         return res
 
     def upload_file_to_some_where(
-            self, local_path, remote_folder, remote_filename='', status_command=log_info, check_ftp_file_same=True):
+            self, local_path, remote_folder, remote_filename='',
+            status_command=log_info, check_ftp_file_same=True, append_offset=0):
         # TODO BytesIO类型local_path
         if not os.path.exists(local_path):
             raise SystemError(f'本地路径不存在：{local_path.__repr__()}')
@@ -673,13 +674,14 @@ class FtpController:
                 if get_err_str_setting("Can't change directory to", ex):
                     self.make_dir_optimistic(remote_folder)
         self._upload_file_to_some_where(
-            local_path, remote_path, remote_filename, status_command, check_ftp_file_same)
+            local_path, remote_path, remote_filename, status_command, check_ftp_file_same, append_offset)
         self.work_dir_now = old_path
         self.cwd_recode_path(old_path)
 
     @with_ftp_lock()
     def _upload_file_to_some_where(
-            self, local_path, remote_path, remote_filename, status_command=log_info, check_ftp_file_same=True):
+            self, local_path, remote_path, remote_filename,
+            status_command=log_info, check_ftp_file_same=True, append_offset=0):
         file_size = os.stat(local_path).st_size
         try:
             if check_ftp_file_same:
@@ -723,7 +725,9 @@ class FtpController:
             else:
                 raise
         start_time = time.time()
-        self.bytes_uploaded = 0
+        self.bytes_uploaded = append_offset
+        if append_offset:
+            self.up_file_size_start = append_offset
         self.last_log = time.time()
 
         def upload_file(data):
@@ -1253,7 +1257,8 @@ class FtpClientStore(midhardware.BaseStore):
                 check_ftp_file_same=self.download_check_ftp_file_same
             )
 
-    def save_data(self, position: str, data: typing.Union[str, bytes, io.BytesIO], data_type=None, *args, **kwargs):
+    def save_data(self, position: str, data: typing.Union[str, bytes, io.BytesIO], data_type=None,
+                  append_offset=0, *args, **kwargs):
         if isinstance(data, str):
             data = data
         elif isinstance(data, (bytes, io.BytesIO)):
@@ -1264,7 +1269,8 @@ class FtpClientStore(midhardware.BaseStore):
                 data,
                 self.location,
                 position,
-                check_ftp_file_same=self.upload_check_ftp_file_same
+                check_ftp_file_same=self.upload_check_ftp_file_same,
+                append_offset=append_offset
             )
 
     def delete_data(self, position, data_type=None, *args, **kwargs):

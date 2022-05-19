@@ -140,7 +140,7 @@ class SftpController:
     def get_detailed_file_list(self, ignore_hidden_files_flag=False):
         files = []
         for attr in self.ftp.listdir_attr():
-            if (self.hidden_files is True or str(attr).split()[8][0] is not '.') or ignore_hidden_files_flag == True:
+            if (self.hidden_files is True or str(attr).split()[8][0] is not '.') or ignore_hidden_files_flag is True:
                 files.append(str(attr))
         return files
 
@@ -344,7 +344,9 @@ class SftpController:
             self.ftp.mkdir(basename)
             self.ftp.chdir(basename)
 
-    def upload_file_to_some_where(self, local_path, remote_folder, remote_filename='', status_command=log_info):
+    def upload_file_to_some_where(
+            self, local_path, remote_folder, remote_filename='',
+            status_command=log_info, check_ftp_file_same=False, append_offset=0):
         # TODO 断点续传
         if not os.path.exists(local_path):
             raise SystemError(f'本地路径不存在：{local_path.__repr__()}')
@@ -359,22 +361,17 @@ class SftpController:
         old_path = self.work_dir_now
         if remote_folder:
             # Create directory in server and go inside
-            try:
-                if (not self.is_there(remote_folder)):
-                    self.sftp_mkdir_p(remote_folder)
-                    status_command(remote_folder, 'Creating directory')
-                else:
-                    status_command(remote_folder, 'Directory exists')
-                self.ftp.cwd(remote_folder)
-            except:
-                status_command(remote_folder, 'Failed to create directory')
-                return
-        self._upload_file_to_some_where(local_path, remote_path, status_command)
+            if not self.is_there(remote_folder):
+                self.sftp_mkdir_p(remote_folder)
+                status_command(remote_folder, 'Creating directory')
+            self.ftp.cwd(remote_folder)
+        self._upload_file_to_some_where(local_path, remote_path, status_command, check_ftp_file_same, append_offset)
         self.work_dir_now = old_path
         self.cwd_recode_path(old_path)
 
     def _upload_file_to_some_where(
-            self, local_path, remote_path, status_command=log_info):
+            self, local_path, remote_path, status_command=log_info,
+            check_ftp_file_same=False, append_offset=0, windows=1024 * 8 * 128):
         file_size = os.stat(local_path).st_size
 
         # Function to update status
@@ -385,11 +382,49 @@ class SftpController:
         try:
             status_command(local_path, 'Uploading')
             self.ftp.put(local_path, remote_path, callback=upload_progress)
+            file_list = self.ftp.listdir(os.path.dirname(remote_path))
+            remote_name = os.path.basename(remote_path)
+            f_local = open(local_path)
+
+            if remote_name in file_list:
+                f_remote = self.ftp.open(remote_path, "a")
+                stat = self.ftp.stat(remote_path)
+                if check_ftp_file_same:
+                    f_remote_tmp = self.ftp.open(remote_path, "r")
+                    try:
+                        r_data = f_remote_tmp.read(windows)
+                        l_data = f_local.read(len(r_data))
+                        status_command(
+                            f"正在检查远程sftp服务器已经存在的文件路径上传的文件和本地文件一致性：\n",
+                            f"本地：{l_data[:70]}\n远程：{r_data[:70]}\n本地{len(l_data)}=?远程{len(r_data)}: {l_data == r_data}")
+                        if l_data == r_data:
+                            self.is_same_file = True
+                            status_command(
+                                f"文件开头800KB一致，准备开始断点续传，已经上传的文件大小:{stat.st_size / 1024 / 1024:.3f}MB", )
+                        else:
+                            self.is_same_file = False
+                            raise SystemError(f'远程文件路径["{self}{remote_path}:1"]已存在，而且本地文件开头800KB与服务器文件不一致，请检查')
+                        raise StopIteration('只是检查文件开头一致性，不需要全部下载')
+                    finally:
+                        f_remote_tmp.close()
+
+                stat = self.ftp.stat(remote_path)
+                f_local.seek(stat.st_size)
+                if append_offset:
+                    f_remote.seek(append_offset)
+            else:
+                f_remote = self.ftp.open(remote_path, "w")
+
+            tmp_buffer = f_local.read(windows)
+            while tmp_buffer:
+                f_remote.write(tmp_buffer)
+                tmp_buffer = f_local.read(windows)
+            f_remote.close()
+            f_local.close()
             status_command(None, 'newline')
         except Exception as e:
-            print(e)
-            status_command(remote_path, 'Upload failed')
-            return
+            status_command(remote_path, f'Upload failed [{type(e)}] {e}')
+            raise e
 
     def download_file(self, ftp_file_name, file_size, status_command, replace_command):
         # Function to update progress
@@ -448,13 +483,9 @@ class SftpController:
             status_command(ftp_file_name, str(min(round((transferred / file_size) * 100, 8), 100)) + '%')
 
         # Try to download file
-        try:
             status_command(ftp_file_name, 'Downloading')
             self.ftp.get(ftp_file_name, local_path, callback=download_progress)
             status_command(None, 'newline')
-        except:
-            status_command(ftp_file_name, 'Download failed')
-
 
     def download_file_to_some_where(self, ftp_file_name, local_path, local_file_name='',
                                     file_size=0, status_command=log_info, replace_command=log_info):
@@ -654,8 +685,11 @@ class ParamikoFolderUploader(object):
                     if '/.git' not in file_full_name and '.pyc' not in file_full_name:
                         logger.debug(f'根据过滤规则，不上传这个文件 {file_full_name}')
 
+
 class SftpClientStore(midhardware.BaseStore):
-    def __init__(self, host, port, user, password, location='/', tmp_path='ftp_data_tmp'):
+    def __init__(
+            self, host, port, user, password, location='/', tmp_path='ftp_data_tmp',
+            download_check_ftp_file_same=False, upload_check_ftp_file_same=False):
         self._host = host
         self._port = port
         self._user = user
@@ -670,6 +704,9 @@ class SftpClientStore(midhardware.BaseStore):
         self.client.connect_until_success()
         self.client.ftp.cwd(self.location)
         self.client.work_dir_now = self.location
+
+        self.upload_check_ftp_file_same = upload_check_ftp_file_same
+        self.download_check_ftp_file_same = download_check_ftp_file_same
 
     def count_data(self, data_type=None, *args, **kwargs):
         return NotImplementedError
@@ -709,11 +746,13 @@ class SftpClientStore(midhardware.BaseStore):
                 file_size=file_size
             )
 
-    def save_data(self, position: str, data, data_type=None, *args, **kwargs):
+    def save_data(self, position: str, data, data_type=None, append_offset=0, *args, **kwargs):
         return self.client.upload_file_to_some_where(
                 data,
                 self.location,
-                position
+                position,
+                check_ftp_file_same=self.upload_check_ftp_file_same,
+                append_offset=append_offset
             )
 
     def delete_data(self, position, data_type=None, *args, **kwargs):

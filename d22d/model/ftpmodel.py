@@ -533,6 +533,7 @@ class FtpController:
             status_command(rename_from, 'Moved')
         except:
             status_command(rename_from, 'Failed to move')
+            raise
 
     def copy_file(self, file_dir, copy_from, file_size, status_command=log_info, replace_command=log_info):
         # Change to script's directory
@@ -580,6 +581,7 @@ class FtpController:
             status_command(file_name, 'Deleted')
         except:
             status_command(file_name, 'Failed to delete')
+            raise
 
     def delete_dir(self, dir_name, status_command=log_info):
         # Go into the directory
@@ -601,7 +603,7 @@ class FtpController:
             self.ftp.sendcmd('RMD ' + dir_name)
         except:
             status_command(dir_name, 'Failed to delete directory')
-            return
+            raise
 
     @with_ftp_lock()
     def delete_dir_fast(self, dir_name, status_command=log_info):
@@ -624,7 +626,7 @@ class FtpController:
             file_to_up = open(file_name, 'rb')
         except:
             status_command(file_name, 'Failed to open file')
-            return
+            raise
         # Try to upload file
         try:
             status_command(file_name, 'Uploading')
@@ -632,7 +634,7 @@ class FtpController:
             status_command(None, 'newline')
         except:
             status_command(file_name, 'Upload failed')
-            return
+            raise
         # Close file
         file_to_up.close()
 
@@ -832,7 +834,7 @@ class FtpController:
             self.ftp.cwd(dir_name)
         except:
             status_command(dir_name, 'Failed to create directory')
-            return
+            raise
         # Cycle through items
         for filename in os.listdir():
             # If file upload
@@ -1034,6 +1036,7 @@ class FtpController:
             status_command(None, 'newline')
         except:
             status_command(ftp_file_name, 'Download failed')
+            raise
         # Close file
         file_to_down.close()
 
@@ -1048,7 +1051,7 @@ class FtpController:
             os.chdir(ftp_dir_name)
         except:
             status_command(ftp_dir_name, 'Failed to create local directory')
-            return
+            raise
         # Go into the ftp directory
         self.ftp.cwd(ftp_dir_name)
         # Get file lists

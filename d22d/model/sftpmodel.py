@@ -84,16 +84,10 @@ class SftpController:
                 time.sleep(5)
 
     def connect_to(self):
-        try:
-            self.transport = paramiko.Transport((self.host, self.port))
-            self.transport.connect(username=self.username, password=self.password)
-            self.ftp = ParamikoSftpClient.from_transport(self.transport)
-            # self.ftp.go_to_home(self.username)
-        except NETWORK_ERR as inst:
-            logger.error(f"重试连接{self}服务端中断,错误：[{inst}]")
-        except Exception as inst:
-            logger.exception(f"Couldn't connect server: {type(inst)}")
-            return False
+        self.transport = paramiko.Transport((self.host, self.port))
+        self.transport.connect(username=self.username, password=self.password)
+        self.ftp = ParamikoSftpClient.from_transport(self.transport)
+        # self.ftp.go_to_home(self.username)
 
     def toggle_hidden_files(self):
         self.hidden_files = not self.hidden_files
@@ -209,6 +203,7 @@ class SftpController:
             status_command(rename_from, 'Moved')
         except:
             status_command(rename_from, 'Failed to move')
+            raise
 
     def copy_file(self, file_dir, copy_from, file_size, status_command, replace_command):
         # Change to script's directory
@@ -256,6 +251,7 @@ class SftpController:
             status_command(file_name, 'Deleted')
         except:
             status_command(file_name, 'Failed to delete')
+            raise
 
     def delete_dir(self, dir_name, status_command):
         # Go into the directory
@@ -265,7 +261,7 @@ class SftpController:
             detailed_file_list = self.get_detailed_file_list(True)
         except:
             status_command(dir_name, 'Failed to delete directory')
-            return
+            raise
         file_list = self.get_file_list(detailed_file_list)
         for file_name, file_details in zip(file_list, detailed_file_list):
             # If directory
@@ -281,6 +277,7 @@ class SftpController:
             self.ftp.rmdir(dir_name)
         except:
             status_command(dir_name, 'Failed to delete directory')
+            raise
 
     def upload_file(self, file_name, file_size, status_command, replace_command):
         # Function to update status
@@ -298,7 +295,7 @@ class SftpController:
             status_command(None, 'newline')
         except:
             status_command(file_name, 'Upload failed')
-            return
+            raise
 
     def upload_dir(self, dir_name, status_command, replace_command):
         # Change to directory
@@ -313,7 +310,7 @@ class SftpController:
             self.ftp.cwd(dir_name)
         except:
             status_command(dir_name, 'Failed to create directory')
-            return
+            raise
         # Cycle through items
         for filename in os.listdir():
             # If file upload

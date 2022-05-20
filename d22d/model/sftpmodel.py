@@ -432,30 +432,31 @@ class SftpController:
             status_command(ftp_file_name, str(min(round((transferred / file_size) * 100, 8), 100)) + '%')
 
         # Check if the file is already present in local directory
-        if (isfile(ftp_file_name)):
-            if (replace_command(ftp_file_name, 'File exists in destination folder') is False):
+        if isfile(ftp_file_name):
+            if replace_command(ftp_file_name, 'File exists in destination folder') is False:
                 return
         # Try to download file
         try:
             status_command(ftp_file_name, 'Downloading')
             self.ftp.get(ftp_file_name, ftp_file_name, callback=download_progress)
             status_command(None, 'newline')
-        except:
+        except Exception:
             status_command(ftp_file_name, 'Download failed')
+            raise
 
     def download_dir(self, ftp_dir_name, status_command, replace_command):
         # Create local directory
         try:
-            if (not os.path.isdir(ftp_dir_name)):
+            if not os.path.isdir(ftp_dir_name):
                 os.makedirs(ftp_dir_name)
                 status_command(ftp_dir_name, 'Created local directory')
             else:
                 status_command(ftp_dir_name, 'Local directory exists')
             os.chdir(ftp_dir_name)
-        except:
+        except Exception:
             status_command(ftp_dir_name, 'Failed to create local directory')
-            return
-        # Go into the ftp directory
+            raise
+            # Go into the ftp directory
         self.ftp.cwd(ftp_dir_name)
         # Get file lists
         detailed_file_list = self.get_detailed_file_list(True)
@@ -483,9 +484,9 @@ class SftpController:
             status_command(ftp_file_name, str(min(round((transferred / file_size) * 100, 8), 100)) + '%')
 
         # Try to download file
-            status_command(ftp_file_name, 'Downloading')
-            self.ftp.get(ftp_file_name, local_path, callback=download_progress)
-            status_command(None, 'newline')
+        status_command(ftp_file_name, 'Downloading')
+        self.ftp.get(ftp_file_name, local_path, callback=download_progress)
+        status_command(None, 'newline')
 
     def download_file_to_some_where(self, ftp_file_name, local_path, local_file_name='',
                                     file_size=0, status_command=log_info, replace_command=log_info):
@@ -702,6 +703,7 @@ class SftpClientStore(midhardware.BaseStore):
 
         self.client = SftpController(host, port, user, password)
         self.client.connect_until_success()
+        self.client.sftp_mkdir_p(self.location)
         self.client.ftp.cwd(self.location)
         self.client.work_dir_now = self.location
 

@@ -1212,6 +1212,10 @@ class FtpClientStore(midhardware.BaseStore):
         self.download_check_ftp_file_same = download_check_ftp_file_same
         self.upload_check_ftp_file_same = upload_check_ftp_file_same
         self.tmp_path = tmp_path
+        try:
+            self.client.make_dir_optimistic(self.location)
+        except SystemError:
+            pass
         self.client.cwd_recode_path(self.location)
 
     def count_data(self, data_type=None, *args, **kwargs):

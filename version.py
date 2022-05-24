@@ -1,4 +1,4 @@
-__VERSION__ = '1.1.62'
+__VERSION__ = '1.1.65'
 
 __ALL__ = [
     'ElasticSearchD',

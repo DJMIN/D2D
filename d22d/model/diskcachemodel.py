@@ -67,7 +67,7 @@ class DiskCache:
 
     def __init__(self, path=PATH_REL_DATA):
         self.path = path
-        self.cache = self.init_cache_default(path).stats()
+        self.cache = self.init_cache_default(path)
 
     @staticmethod
     def init_cache_default(path):

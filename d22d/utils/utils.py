@@ -381,7 +381,7 @@ class LogFormatter(_LogFormatter, object):
         # '[%(threadName)s]' \
         if fmt == 1:
             fmt = '%(color)s[%(asctime)s][%(levelname)1.1s]%(end_color)s%(message)s'
-        self.fmt = fmt or '%(color)s[%(asctime)s][%(levelname)1.1s][%(name)s][%(filename)s:%(lineno)d:%(funcName)s()]%(end_color)s%(message)s'
+        self.fmt = fmt or '%(color)s[%(asctime)s][%(levelname)1.1s][%(name)s] [ "%(pathname)s:%(lineno)d" :%(funcName)s()] %(end_color)s%(message)s'
 
         super(LogFormatter, self).__init__(color=color, fmt=self.fmt, datefmt=datefmt, *args, **kwargs)
 

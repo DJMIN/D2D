@@ -533,6 +533,7 @@ class FtpController:
             status_command(rename_from, 'Moved')
         except:
             status_command(rename_from, 'Failed to move')
+            raise
 
     def copy_file(self, file_dir, copy_from, file_size, status_command=log_info, replace_command=log_info):
         # Change to script's directory
@@ -580,6 +581,7 @@ class FtpController:
             status_command(file_name, 'Deleted')
         except:
             status_command(file_name, 'Failed to delete')
+            raise
 
     def delete_dir(self, dir_name, status_command=log_info):
         # Go into the directory
@@ -601,7 +603,7 @@ class FtpController:
             self.ftp.sendcmd('RMD ' + dir_name)
         except:
             status_command(dir_name, 'Failed to delete directory')
-            return
+            raise
 
     @with_ftp_lock()
     def delete_dir_fast(self, dir_name, status_command=log_info):
@@ -624,7 +626,7 @@ class FtpController:
             file_to_up = open(file_name, 'rb')
         except:
             status_command(file_name, 'Failed to open file')
-            return
+            raise
         # Try to upload file
         try:
             status_command(file_name, 'Uploading')
@@ -632,7 +634,7 @@ class FtpController:
             status_command(None, 'newline')
         except:
             status_command(file_name, 'Upload failed')
-            return
+            raise
         # Close file
         file_to_up.close()
 
@@ -653,7 +655,8 @@ class FtpController:
         return res
 
     def upload_file_to_some_where(
-            self, local_path, remote_folder, remote_filename='', status_command=log_info, check_ftp_file_same=True):
+            self, local_path, remote_folder, remote_filename='',
+            status_command=log_info, check_ftp_file_same=True, append_offset=0):
         # TODO BytesIO类型local_path
         if not os.path.exists(local_path):
             raise SystemError(f'本地路径不存在：{local_path.__repr__()}')
@@ -673,13 +676,14 @@ class FtpController:
                 if get_err_str_setting("Can't change directory to", ex):
                     self.make_dir_optimistic(remote_folder)
         self._upload_file_to_some_where(
-            local_path, remote_path, remote_filename, status_command, check_ftp_file_same)
+            local_path, remote_path, remote_filename, status_command, check_ftp_file_same, append_offset)
         self.work_dir_now = old_path
         self.cwd_recode_path(old_path)
 
     @with_ftp_lock()
     def _upload_file_to_some_where(
-            self, local_path, remote_path, remote_filename, status_command=log_info, check_ftp_file_same=True):
+            self, local_path, remote_path, remote_filename,
+            status_command=log_info, check_ftp_file_same=True, append_offset=0):
         file_size = os.stat(local_path).st_size
         try:
             if check_ftp_file_same:
@@ -723,7 +727,9 @@ class FtpController:
             else:
                 raise
         start_time = time.time()
-        self.bytes_uploaded = 0
+        self.bytes_uploaded = append_offset
+        if append_offset:
+            self.up_file_size_start = append_offset
         self.last_log = time.time()
 
         def upload_file(data):
@@ -828,7 +834,7 @@ class FtpController:
             self.ftp.cwd(dir_name)
         except:
             status_command(dir_name, 'Failed to create directory')
-            return
+            raise
         # Cycle through items
         for filename in os.listdir():
             # If file upload
@@ -1030,6 +1036,7 @@ class FtpController:
             status_command(None, 'newline')
         except:
             status_command(ftp_file_name, 'Download failed')
+            raise
         # Close file
         file_to_down.close()
 
@@ -1044,7 +1051,7 @@ class FtpController:
             os.chdir(ftp_dir_name)
         except:
             status_command(ftp_dir_name, 'Failed to create local directory')
-            return
+            raise
         # Go into the ftp directory
         self.ftp.cwd(ftp_dir_name)
         # Get file lists
@@ -1208,6 +1215,10 @@ class FtpClientStore(midhardware.BaseStore):
         self.download_check_ftp_file_same = download_check_ftp_file_same
         self.upload_check_ftp_file_same = upload_check_ftp_file_same
         self.tmp_path = tmp_path
+        try:
+            self.client.make_dir_optimistic(self.location)
+        except SystemError:
+            pass
         self.client.cwd_recode_path(self.location)
 
     def count_data(self, data_type=None, *args, **kwargs):
@@ -1253,7 +1264,8 @@ class FtpClientStore(midhardware.BaseStore):
                 check_ftp_file_same=self.download_check_ftp_file_same
             )
 
-    def save_data(self, position: str, data: typing.Union[str, bytes, io.BytesIO], data_type=None, *args, **kwargs):
+    def save_data(self, position: str, data: typing.Union[str, bytes, io.BytesIO], data_type=None,
+                  append_offset=0, *args, **kwargs):
         if isinstance(data, str):
             data = data
         elif isinstance(data, (bytes, io.BytesIO)):
@@ -1264,7 +1276,8 @@ class FtpClientStore(midhardware.BaseStore):
                 data,
                 self.location,
                 position,
-                check_ftp_file_same=self.upload_check_ftp_file_same
+                check_ftp_file_same=self.upload_check_ftp_file_same,
+                append_offset=append_offset
             )
 
     def delete_data(self, position, data_type=None, *args, **kwargs):

@@ -381,7 +381,7 @@ class LogFormatter(_LogFormatter, object):
         # '[%(threadName)s]' \
         if fmt == 1:
             fmt = '%(color)s[%(asctime)s][%(levelname)1.1s]%(end_color)s%(message)s'
-        self.fmt = fmt or '%(color)s[%(asctime)s][%(levelname)1.1s][%(name)s][%(filename)s:%(lineno)d:%(funcName)s()]%(end_color)s%(message)s'
+        self.fmt = fmt or '%(color)s[%(asctime)s][%(levelname)1.1s][%(name)s] [ "%(pathname)s:%(lineno)d" :%(funcName)s()] %(end_color)s%(message)s'
 
         super(LogFormatter, self).__init__(color=color, fmt=self.fmt, datefmt=datefmt, *args, **kwargs)
 
@@ -397,6 +397,27 @@ class LogFormatter(_LogFormatter, object):
 
 logger_info_where = logging.getLogger('info_where')
 logger_info_where.setLevel(logging.DEBUG)
+
+
+def set_file_shell_log(log, fmt=None, log_path=None):
+    if not isinstance(log_path, str):
+        log_path = 'log'
+    if not os.path.exists(log_path):
+        os.makedirs(log_path)
+    # create a file handler
+    for handler in [
+        logging.StreamHandler(),
+        logging.FileHandler(os.path.join(log_path, f"{log.name}.log"), encoding='utf-8'),
+    ]:
+        handler.setLevel(logging.DEBUG)
+
+        # create a logging format
+        handler.setFormatter(LogFormatter(fmt=fmt))
+
+        # add the handlers to the logger
+        log.addHandler(handler)
+        if log.name != 'root':
+            log.propagate = False
 
 
 def set_shell_log(log, fmt=None):
@@ -424,10 +445,14 @@ def log_info(*args, **kwargs):
         [arg.__str__() for arg in args] + [', ', ', '.join(f"{k}={v}" for k, v in kwargs.items())]))
 
 
-def active_log():
+def active_log(file=False):
     # set_shell_log(logger)
-    set_shell_log(logging.getLogger())
-    set_shell_log(logger_info_where, 1)
+    if file:
+        set_file_shell_log(logging.getLogger(), log_path=file)
+        set_file_shell_log(logger_info_where, 1, log_path=file)
+    else:
+        set_shell_log(logging.getLogger())
+        set_shell_log(logger_info_where, 1)
 
 
 def activate_debug_logger(level=logging.DEBUG):
@@ -500,7 +525,7 @@ def makedirs(path):
     if not os.path.exists(out_f_path):
         logger.info(f'正在创建新文件夹：{out_f_path}，因为{path}需要')
         os.makedirs(out_f_path)
-        
+
 
 def iter_path(path, exclude=None, include=None, exclude_path=None, include_path=None, return_type=2, open_kwargs=None):
     if exclude is None:

@@ -358,10 +358,17 @@ class SftpController:
         old_path = self.work_dir_now
         if remote_folder:
             # Create directory in server and go inside
-            if not self.is_there(remote_folder):
-                self.sftp_mkdir_p(remote_folder)
-                status_command(remote_folder, 'Creating directory')
-            self.ftp.cwd(remote_folder)
+            try:
+                if (not self.is_there(remote_folder)):
+                    self.sftp_mkdir_p(remote_folder)
+                    status_command(remote_folder, 'Creating directory')
+                else:
+                    status_command(remote_folder, 'Directory exists')
+                self.ftp.cwd(remote_folder)
+            except Exception as e:
+                status_command(remote_folder, 'Failed to create directory')
+                raise e
+
         self._upload_file_to_some_where(local_path, remote_path, status_command, check_ftp_file_same, append_offset)
         self.work_dir_now = old_path
         self.cwd_recode_path(old_path)
@@ -481,9 +488,13 @@ class SftpController:
             status_command(ftp_file_name, str(min(round((transferred / file_size) * 100, 8), 100)) + '%')
 
         # Try to download file
-        status_command(ftp_file_name, 'Downloading')
-        self.ftp.get(ftp_file_name, local_path, callback=download_progress)
-        status_command(None, 'newline')
+        try:
+            status_command(ftp_file_name, 'Downloading')
+            self.ftp.get(ftp_file_name, local_path, callback=download_progress)
+            status_command(None, 'newline')
+        except Exception as e:
+            status_command(ftp_file_name, 'Download failed')
+            raise e
 
     def download_file_to_some_where(self, ftp_file_name, local_path, local_file_name='',
                                     file_size=0, status_command=log_info, replace_command=log_info):
@@ -774,9 +785,9 @@ class SftpClientStore(midhardware.BaseStore):
 
 
 if __name__ == '__main__':
-    __fs = SftpClientStore('192.168.0.111', 57522, 'test', '1234qwer!@#$QWER', '/ftp/tmp_test', 'data')
+    __fs = SftpClientStore('192.168.0.111', 57522, 'test', '1234qwer!@#$QWER', '/home/test', 'data')
 
     for __f in __fs.list_data():
         print(__f)
     # res = __fs.get_data('mysql2ftp_0424_1650809830.csv')
-    # res = __fs.save_data('sftp_test.csv','data/mysql2ftp_0424_1650809830.csv')
+    res = __fs.save_data('mysql2ftp_0424_1650809830.csv','data/mysql2ftp_0424_1650809830.csv')

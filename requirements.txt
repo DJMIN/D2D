@@ -64,12 +64,12 @@ twine
 sqlparse
 six
 orjson
-requests~=2.27.1
+requests>=2.27.1
 elasticsearch_dsl>=6.1
 PyMySQL>=0.9.3
-mysql-connector-python~=8.0.27
-redis~=3.2.1
-DBUtils~=2.0
+mysql-connector-python>=8.0.27
+redis>=3.2.1
+DBUtils>=2.0
 elasticsearch>=6.1.1
 diskcache
 tomorrow3
@@ -85,7 +85,7 @@ universal_object_pool
 requests-ftp
 webdriver_manager
 auto_run_on_remote
-pika~=1.2.0
+pika>=1.2.0
 # http-parser
 aiohttp
 PySnooper>=1.0.0

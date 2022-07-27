@@ -106,13 +106,16 @@ class ElasticSearchD(EsModel):
             query = index[1]
         logging.debug(json.dumps(query))
         for i in self.scan(query=query, index=index_name, *args, **kwargs):
-            r = {}
-            if r.get('id'):
-                r['_id'] = i['_id']
+            if i.get('_id'):
+                r = {}
+                if i.get('id'):
+                    r['_id'] = i['_id']
+                else:
+                    r['id'] = i['_id']
+                r.update(i['_source'])
+                yield r
             else:
-                r['id'] = i['_id']
-            r.update(i['_source'])
-            yield r
+                yield i
 
     def save_data(self, index, data, batch_size=1000, pks='', pop_id='_id', *args, **kwargs):
         actions = []

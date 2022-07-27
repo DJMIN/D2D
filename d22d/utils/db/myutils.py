@@ -267,9 +267,14 @@ class EsModel(object):
         scroll_id = resp.get("_scroll_id")
 
         try:
-            while scroll_id and resp["hits"]["hits"]:
-                for hit in resp["hits"]["hits"]:
-                    yield hit
+            if query.get('aggs'):
+                for agg_name in query['aggs']:
+                    for r in resp['aggregations'][agg_name].get('buckets', {}):
+                        yield r
+            else:
+                while scroll_id and resp["hits"]["hits"]:
+                    for hit in resp["hits"]["hits"]:
+                        yield hit
 
                 # check if we have any errors
 

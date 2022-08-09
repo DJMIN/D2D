@@ -4,6 +4,8 @@ import copy
 import random
 import uuid
 import collections
+from abc import ABC
+
 import wrapt
 from flask import request as flask_request
 # noinspection PyUnresolvedReferences
@@ -643,7 +645,7 @@ logger_timmer = logging.getLogger('timmer')
 # 定义一个函数用来统计传入函数的运行时间
 def timmer():
     # 传入的参数是一个函数
-    @wrapt.decorator
+    @wrapt.decorator(enabled=False)
     def deco(func, instance, args, kwargs):
         # 本应传入运行函数的各种参数
         # print('\n函数：{_funcname_}开始运行：'.format(_funcname_=func.__name__))
@@ -676,7 +678,7 @@ def timmer():
 
 def timmer_async():
     # 传入的参数是一个函数
-    @wrapt.decorator
+    @wrapt.decorator(enabled=False)
     async def deco(func, instance, args, kwargs):
         # 本应传入运行函数的各种参数
         # print('\n函数：{_funcname_}开始运行：'.format(_funcname_=func.__name__))
@@ -709,6 +711,14 @@ last_print_hz = collections.defaultdict(int)
 max_print_hz = collections.defaultdict(int)
 
 
+class MyFunctionWrapper(wrapt.FunctionWrapper, ABC):
+    def __reduce__(self):
+        return type(self), (self.__wrapped__,)
+
+    def __reduce_ex__(self, protocol):
+        return type(self), (self.__wrapped__,)
+
+
 def print_hz(
         name='',
         per_cnt_print=2000,
@@ -727,7 +737,8 @@ def print_hz(
     global cnt_hz
 
     # 传入的参数是一个函数
-    @wrapt.decorator
+    @wrapt.decorator(enabled=False)
+    # @wrapt.decorator(proxy=MyFunctionWrapper)
     def deco(func, instance, args, kwargs):
         # 本应传入运行函数的各种参数
         # print('\n函数：{_funcname_}开始运行：'.format(_funcname_=func.__name__))
@@ -774,7 +785,7 @@ def print_hz_async(
     global now_pid
 
     # 传入的参数是一个函数
-    @wrapt.decorator
+    @wrapt.decorator(enabled=False)
     async def deco(func, instance, args, kwargs):
         # 本应传入运行函数的各种参数
         # print('\n函数：{_funcname_}开始运行：'.format(_funcname_=func.__name__))

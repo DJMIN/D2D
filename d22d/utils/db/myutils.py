@@ -276,26 +276,26 @@ class EsModel(object):
                     for hit in resp["hits"]["hits"]:
                         yield hit
 
-                # check if we have any errors
+                    # check if we have any errors
 
-                # if (resp["_shards"]["successful"] + resp["_shards"]["skipped"]) < resp["_shards"]["total"]:
-                #     logging.warning(
-                #         "Scroll request has only succeeded on %d (+%d skipped) shards out of %d.",
-                #         resp["_shards"]["successful"],
-                #         resp["_shards"]["skipped"],
-                #         resp["_shards"]["total"],
-                #     )
-                #     if raise_on_error:
-                #         raise Exception(
-                #             scroll_id,
-                #             "Scroll request has only succeeded on %d (+%d skiped) shards out of %d."
-                #             % (resp["_shards"]["successful"], resp["_shards"]["skipped"], resp["_shards"]["total"]),
-                #         )
+                    # if (resp["_shards"]["successful"] + resp["_shards"]["skipped"]) < resp["_shards"]["total"]:
+                    #     logging.warning(
+                    #         "Scroll request has only succeeded on %d (+%d skipped) shards out of %d.",
+                    #         resp["_shards"]["successful"],
+                    #         resp["_shards"]["skipped"],
+                    #         resp["_shards"]["total"],
+                    #     )
+                    #     if raise_on_error:
+                    #         raise Exception(
+                    #             scroll_id,
+                    #             "Scroll request has only succeeded on %d (+%d skiped) shards out of %d."
+                    #             % (resp["_shards"]["successful"], resp["_shards"]["skipped"], resp["_shards"]["total"]),
+                    #         )
 
-                resp = self.es.scroll(
-                    body={"scroll_id": scroll_id, "scroll": scroll}, **scroll_kwargs
-                )
-                scroll_id = resp.get("_scroll_id")
+                    resp = self.es.scroll(
+                        body={"scroll_id": scroll_id, "scroll": scroll}, **scroll_kwargs
+                    )
+                    scroll_id = resp.get("_scroll_id")
 
         finally:
             if scroll_id and clear_scroll:

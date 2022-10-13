@@ -19,8 +19,6 @@ from zipfile import (
 )
 from pathlib import Path
 
-PICKLE_PATH = 'pkl_cache'
-
 logger = logging.getLogger('ziputils')
 
 
@@ -29,7 +27,7 @@ def file_exists(path):
 
 
 def makedirs(path, check_dot=True):
-    if path in ['/',  '']:
+    if path in ['/', '']:
         return
     folder_name = path.split('\\')[-1].split('/')[-1]
     if check_dot:
@@ -43,35 +41,6 @@ def makedirs(path, check_dot=True):
     if not os.path.exists(out_f_path):
         logger.info(f'正在创建新文件夹：{out_f_path}，因为{path}需要')
         os.makedirs(out_f_path)
-
-
-makedirs(PICKLE_PATH)
-
-
-def get_cache_pickle(key, default=None, refresh=False):
-    path = f'{PICKLE_PATH}/{key}.pkl'
-    if os.path.exists(path) and not refresh:
-        try:
-            with open(path, 'rb') as f:
-                res = pickle.load(f)
-            need_set = False
-        except Exception as ex:
-            print(f"pickle load: {type(ex)} {ex}")
-            need_set = True
-    else:
-        need_set = True
-    if need_set:
-        if callable(default):
-            default = default()
-        set_cache_pickle(key, default)
-        res = default
-    return res
-
-
-def set_cache_pickle(key, data):
-    makedirs(PICKLE_PATH)
-    with open(f'{PICKLE_PATH}/{key}.pkl', 'wb') as f:
-        pickle.dump(data, f)
 
 
 def remove_file(path):
@@ -367,7 +336,8 @@ def iter_zip_file(
         f_size = f_info.file_size
         cnt_size += f_size
 
-        logging.debug(f'解压到文件 [已处理{cnt}/{len(namelist)} 解压|{cnt_unzip}|个：{cnt_size / 1024 / 1024:.3f}MB]：{f_path} ')
+        logging.debug(
+            f'解压到文件 [已处理{cnt}/{len(namelist)} 解压|{cnt_unzip}|个：{cnt_size / 1024 / 1024:.3f}MB]：{f_path} ')
         zfile.extract(f_path, unzip_path, pwd=pwd)
         # zfile.extract(f_path_o, unzip_path, pwd=pwd)
         # makedirs(os.path.join(unzip_path, f_path))
@@ -432,7 +402,8 @@ def un_zip(
         f_size = f_info.file_size
         cnt_size += f_size
 
-        logging.debug(f'解压到文件 [已处理{cnt}/{len(namelist)} 解压|{cnt_unzip}|个：{cnt_size / 1024 / 1024:.3f}MB]：{f_path} ')
+        logging.debug(
+            f'解压到文件 [已处理{cnt}/{len(namelist)} 解压|{cnt_unzip}|个：{cnt_size / 1024 / 1024:.3f}MB]：{f_path} ')
         zfile.extract(f_path, unzip_path, pwd=pwd)
 
         # zfile.extract(f_path_o, unzip_path, pwd=pwd)

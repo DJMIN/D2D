@@ -7,10 +7,10 @@ class FileSystemStore(midhardware.BaseStore):
     def __init__(self, location):
         self.location = location
 
-    def count_data(self):
+    def count_data(self, **kwargs):
         return NotImplementedError
 
-    def list_data(self):
+    def list_data(self, **kwargs):
         return NotImplementedError
 
     def get_data(self, position, *args, **kwargs):

@@ -1,13 +1,14 @@
 import logging
 import os
 
-from unrar.cffi import rarfile
 from d22d.utils.utils import remove_folder, makedirs
 
 
 def un_rar(
         file_path, unzip_path='', exclude=None, include=None,
         exclude_path=None, include_path=None, new_file=False, pwd=None):
+    from unrar.cffi import rarfile
+
     """unzip zip file"""
     if exclude is None:
         exclude = []

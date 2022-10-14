@@ -441,6 +441,10 @@ class MySqlD(ClientPyMySQL, ABC):
                         _type = 'varchar(256)'
                     else:
                         _type = 'text'
+                elif isinstance(value, datetime.datetime):
+                    _type = 'datetime'
+                elif isinstance(value, float):
+                    _type = 'float'
                 else:
                     _type = 'blob'
 

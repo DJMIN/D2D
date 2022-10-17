@@ -291,11 +291,15 @@ class EsModel(object):
                     #             "Scroll request has only succeeded on %d (+%d skiped) shards out of %d."
                     #             % (resp["_shards"]["successful"], resp["_shards"]["skipped"], resp["_shards"]["total"]),
                     #         )
-
-                    resp = self.es.scroll(
-                        body={"scroll_id": scroll_id, "scroll": scroll}, **scroll_kwargs
-                    )
-                    scroll_id = resp.get("_scroll_id")
+                    while True:
+                        try:
+                            resp = self.es.scroll(
+                                body={"scroll_id": scroll_id, "scroll": scroll}, **scroll_kwargs
+                            )
+                            scroll_id = resp.get("_scroll_id")
+                            break
+                        except ConnectionError:
+                            time.sleep(5)
 
         finally:
             if scroll_id and clear_scroll:

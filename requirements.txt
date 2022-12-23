@@ -100,3 +100,4 @@ nb_http_client
 clipboard
 sqlalchemy>=1.4.22
 sqlalchemy-utils>=0.37.9
+biplist

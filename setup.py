@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # coding=utf-8
-import codecs
-import os
-import sys
-from version import __VERSION__
+from d22d.version import __VERSION__
 
 try:
     from setuptools import setup, find_packages

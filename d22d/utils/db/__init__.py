@@ -239,7 +239,9 @@ class ElasticSearchD(EsModel):
                     properties[name]['type'] = 'long'
                 elif isinstance(value, float):
                     properties[name]['type'] = 'float'
-                elif isinstance(value, str) or isinstance(value, list):
+                elif isinstance(value, datetime.datetime) or isinstance(value, datetime.date):
+                    properties[name]['type'] = 'date'
+                elif isinstance(value, str) or isinstance(value, list) or value is None:
                     properties[name] = {
                         "type": "text",
                         "fields": {
@@ -446,7 +448,7 @@ class MySqlD(ClientPyMySQL, ABC):
                 elif isinstance(value, float):
                     _type = 'float'
                 else:
-                    _type = 'blob'
+                    _type = 'text'
 
                 sql += ('`' + name + '` ')
                 sql += (_type + ',')

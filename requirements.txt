@@ -52,7 +52,7 @@ rarfile
 bcrypt
 greenlet
 xlrd
-demjson
+demjson3
 tushare
 psutil
 arrow

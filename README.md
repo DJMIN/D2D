@@ -563,8 +563,8 @@ if __name__ == '__main__':
 # upload pypi
 
 ```shell
-git config --global http.proxy socks5://127.0.0.1:24049
-git config https.proxy socks5://127.0.0.1:24049
+git config --global http.proxy socks5://127.0.0.1:8389
+git config https.proxy socks5://127.0.0.1:8389
 python setup.py sdist bdist_wheel upload
 twine upload dist/*
 ```
